@@ -5,7 +5,9 @@ import '../models/subject.dart';
 import '../models/study_session.dart';
 import '../models/calendar_event.dart';
 import '../models/todo_item.dart';
+import '../models/user_profile.dart';
 import '../data/taiwan_calendar.dart';
+import '../data/subject_presets.dart';
 import '../utils/date_utils.dart';
 
 const _uuid = Uuid();
@@ -15,6 +17,7 @@ class AppProvider extends ChangeNotifier {
   late Box<StudySession> _sessionBox;
   late Box<CalendarEvent> _eventBox;
   late Box<TodoItem> _todoBox;
+  late Box<UserProfile> _profileBox;
   late Box<bool> _seededBox;
 
   List<Subject> get subjects => _subjectBox.values.toList();
@@ -22,11 +25,17 @@ class AppProvider extends ChangeNotifier {
   List<CalendarEvent> get events => _eventBox.values.toList();
   List<TodoItem> get todos => _todoBox.values.toList();
 
+  UserProfile? get profile =>
+      _profileBox.isNotEmpty ? _profileBox.values.first : null;
+
+  bool get hasProfile => _profileBox.isNotEmpty;
+
   Future<void> init() async {
     _subjectBox = await Hive.openBox<Subject>('subjects');
     _sessionBox = await Hive.openBox<StudySession>('sessions');
     _eventBox = await Hive.openBox<CalendarEvent>('events');
     _todoBox = await Hive.openBox<TodoItem>('todos');
+    _profileBox = await Hive.openBox<UserProfile>('profiles');
     _seededBox = await Hive.openBox<bool>('meta');
 
     if (_seededBox.get('seeded') != true) {
@@ -36,18 +45,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> _seedDefaults() async {
-    final defaultSubjects = [
-      Subject(id: _uuid.v4(), name: '國文', colorValue: 0xFFE53935, weeklyGoalMinutes: 120),
-      Subject(id: _uuid.v4(), name: '英文', colorValue: 0xFF1E88E5, weeklyGoalMinutes: 150),
-      Subject(id: _uuid.v4(), name: '數學', colorValue: 0xFF43A047, weeklyGoalMinutes: 180),
-      Subject(id: _uuid.v4(), name: '物理', colorValue: 0xFF8E24AA, weeklyGoalMinutes: 90),
-      Subject(id: _uuid.v4(), name: '化學', colorValue: 0xFFFF8F00, weeklyGoalMinutes: 90),
-      Subject(id: _uuid.v4(), name: '歷史', colorValue: 0xFF00ACC1, weeklyGoalMinutes: 60),
-    ];
-    for (final s in defaultSubjects) {
-      await _subjectBox.put(s.id, s);
-    }
-
+    // Only seed calendar events on first launch; subjects are seeded via profile setup
     for (final e in TaiwanCalendar.allEvents) {
       final event = CalendarEvent(
         id: _uuid.v4(),
@@ -57,6 +55,36 @@ class AppProvider extends ChangeNotifier {
       );
       await _eventBox.put(event.id, event);
     }
+  }
+
+  // ── Profile ───────────────────────────────────────────────────────────────
+
+  Future<void> saveProfile(UserProfile p) async {
+    await _profileBox.clear();
+    await _profileBox.put(p.id, p);
+    notifyListeners();
+  }
+
+  /// Replace all subjects with the preset for [level].
+  Future<void> applySubjectPreset(SchoolLevel level) async {
+    await _subjectBox.clear();
+    final presets = buildSubjects(level, () => _uuid.v4());
+    for (final s in presets) {
+      await _subjectBox.put(s.id, s);
+    }
+    notifyListeners();
+  }
+
+  /// Append preset subjects (skip names already present).
+  Future<void> appendSubjectPreset(SchoolLevel level) async {
+    final existing = _subjectBox.values.map((s) => s.name).toSet();
+    final presets = buildSubjects(level, () => _uuid.v4())
+        .where((s) => !existing.contains(s.name))
+        .toList();
+    for (final s in presets) {
+      await _subjectBox.put(s.id, s);
+    }
+    notifyListeners();
   }
 
   // ── Subjects ──────────────────────────────────────────────────────────────

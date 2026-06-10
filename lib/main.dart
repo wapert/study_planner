@@ -6,8 +6,10 @@ import 'models/subject.dart';
 import 'models/study_session.dart';
 import 'models/calendar_event.dart';
 import 'models/todo_item.dart';
+import 'models/user_profile.dart';
 import 'providers/app_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/profile_setup_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +19,7 @@ void main() async {
   Hive.registerAdapter(StudySessionAdapter());
   Hive.registerAdapter(CalendarEventAdapter());
   Hive.registerAdapter(TodoItemAdapter());
+  Hive.registerAdapter(UserProfileAdapter());
 
   final provider = AppProvider();
   await provider.init();
@@ -24,13 +27,14 @@ void main() async {
   runApp(
     ChangeNotifierProvider.value(
       value: provider,
-      child: const StudyPlannerApp(),
+      child: StudyPlannerApp(showSetup: !provider.hasProfile),
     ),
   );
 }
 
 class StudyPlannerApp extends StatelessWidget {
-  const StudyPlannerApp({super.key});
+  final bool showSetup;
+  const StudyPlannerApp({super.key, required this.showSetup});
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +55,10 @@ class StudyPlannerApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      routes: {
+        '/home': (_) => const HomeScreen(),
+      },
+      home: showSetup ? const ProfileSetupScreen() : const HomeScreen(),
     );
   }
 }
