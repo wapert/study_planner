@@ -4,9 +4,11 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_provider.dart';
 import '../models/calendar_event.dart';
+import '../models/chapter_plan.dart';
 import '../utils/date_utils.dart';
 import '../widgets/session_tile.dart';
 import '../widgets/event_chip.dart';
+import '../widgets/chapter_plan_sheet.dart';
 
 const _uuid = Uuid();
 
@@ -27,6 +29,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final sessions = provider.sessionsForDay(_selected);
     final events = provider.eventsForDay(_selected);
 
+    // Chapter plans active on the selected day
+    final chapterItems = _chapterItemsForDay(provider, _selected);
+
     return Scaffold(
       appBar: AppBar(title: const Text('行事曆'), centerTitle: false),
       body: Column(
@@ -42,12 +47,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 _focused = focused;
               });
             },
-            onPageChanged: (focused) => setState(() => _focused = focused),
+            onPageChanged: (focused) =>
+                setState(() => _focused = focused),
             calendarFormat: CalendarFormat.month,
             eventLoader: (day) {
               final s = provider.sessionsForDay(day);
               final e = provider.eventsForDay(day);
-              return [...s, ...e];
+              final c = _chapterItemsForDay(provider, day);
+              return [...s, ...e, ...c];
             },
             calendarStyle: CalendarStyle(
               markerDecoration: BoxDecoration(
@@ -55,7 +62,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 shape: BoxShape.circle,
               ),
               todayDecoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                color:
+                    Theme.of(context).colorScheme.primaryContainer,
                 shape: BoxShape.circle,
               ),
               selectedDecoration: BoxDecoration(
@@ -63,7 +71,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 shape: BoxShape.circle,
               ),
             ),
-            headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
+            headerStyle: const HeaderStyle(
+                formatButtonVisible: false, titleCentered: true),
             locale: 'zh_TW',
             startingDayOfWeek: StartingDayOfWeek.sunday,
           ),
@@ -72,28 +81,70 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: ListView(
               padding: const EdgeInsets.all(12),
               children: [
+                // ── Chapter plan items ──────────────────────────────────
+                if (chapterItems.isNotEmpty) ...[
+                  const Text('章節計畫',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  ...chapterItems.map((item) =>
+                      _ChapterCalendarTile(
+                        plan: item.$1,
+                        subject: provider
+                            .subjectById(item.$1.subjectId),
+                        date: _selected,
+                        chaptersForDay: item.$2,
+                        onToggle: () => provider.toggleChapterDay(
+                            item.$1, _selected),
+                        onEdit: () {
+                          final s = provider
+                              .subjectById(item.$1.subjectId);
+                          if (s != null) {
+                            showChapterPlanSheet(context, s,
+                                existing: item.$1);
+                          }
+                        },
+                      )),
+                  const SizedBox(height: 12),
+                ],
+
+                // ── Calendar events ─────────────────────────────────────
                 if (events.isNotEmpty) ...[
-                  const Text('活動', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('活動',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: events.map((e) => EventChip(event: e, onDelete: () {
-                      context.read<AppProvider>().deleteEvent(e.id);
-                    })).toList(),
+                    children: events
+                        .map((e) => EventChip(
+                              event: e,
+                              onDelete: () =>
+                                  context
+                                      .read<AppProvider>()
+                                      .deleteEvent(e.id),
+                            ))
+                        .toList(),
                   ),
                   const SizedBox(height: 12),
                 ],
+
+                // ── Study sessions ──────────────────────────────────────
                 if (sessions.isNotEmpty) ...[
-                  const Text('讀書時段', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('讀書時段',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   ...sessions.map((s) => SessionTile(session: s)),
                 ],
-                if (events.isEmpty && sessions.isEmpty)
+
+                if (chapterItems.isEmpty &&
+                    events.isEmpty &&
+                    sessions.isEmpty)
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.only(top: 32),
-                      child: Text('這天沒有安排', style: TextStyle(color: Colors.grey[500])),
+                      child: Text('這天沒有安排',
+                          style: TextStyle(
+                              color: Colors.grey.shade500)),
                     ),
                   ),
               ],
@@ -109,6 +160,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  /// Returns (ChapterPlan, chaptersForDate) tuples active on [day].
+  List<(ChapterPlan, int)> _chapterItemsForDay(
+      AppProvider provider, DateTime day) {
+    final result = <(ChapterPlan, int)>[];
+    for (final plan in provider.chapterPlans) {
+      if (plan.isStudyDay(day)) {
+        result.add((plan, plan.chaptersForDate(day)));
+      }
+    }
+    return result;
+  }
+
   void _showAddEventDialog(BuildContext context) {
     final titleCtrl = TextEditingController();
     EventType selectedType = EventType.exam;
@@ -122,37 +185,132 @@ class _CalendarScreenState extends State<CalendarScreen> {
             children: [
               TextField(
                 controller: titleCtrl,
-                decoration: const InputDecoration(labelText: '活動名稱'),
+                decoration:
+                    const InputDecoration(labelText: '活動名稱'),
                 autofocus: true,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<EventType>(
                 initialValue: selectedType,
-                decoration: const InputDecoration(labelText: '類型'),
-                items: EventType.values.map((t) => DropdownMenuItem(
-                  value: t,
-                  child: Text(t.label),
-                )).toList(),
-                onChanged: (t) => setState(() => selectedType = t!),
+                decoration:
+                    const InputDecoration(labelText: '類型'),
+                items: EventType.values
+                    .map((t) => DropdownMenuItem(
+                          value: t,
+                          child: Text(t.label),
+                        ))
+                    .toList(),
+                onChanged: (t) =>
+                    setState(() => selectedType = t!),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('取消')),
             FilledButton(
               onPressed: () {
                 if (titleCtrl.text.trim().isEmpty) return;
                 context.read<AppProvider>().addEvent(CalendarEvent(
-                  id: _uuid.v4(),
-                  title: titleCtrl.text.trim(),
-                  date: _selected,
-                  typeIndex: selectedType.index,
-                ));
+                      id: _uuid.v4(),
+                      title: titleCtrl.text.trim(),
+                      date: _selected,
+                      typeIndex: selectedType.index,
+                    ));
                 Navigator.pop(ctx);
               },
               child: const Text('新增'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Chapter item tile in calendar detail ──────────────────────────────────────
+
+class _ChapterCalendarTile extends StatelessWidget {
+  final ChapterPlan plan;
+  final dynamic subject;
+  final DateTime date;
+  final int chaptersForDay;
+  final VoidCallback onToggle;
+  final VoidCallback onEdit;
+
+  const _ChapterCalendarTile({
+    required this.plan,
+    required this.subject,
+    required this.date,
+    required this.chaptersForDay,
+    required this.onToggle,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (subject == null) return const SizedBox.shrink();
+    final done = plan.isCompletedOn(date);
+    final color = Color(subject.colorValue as int);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onToggle,
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              // Completion checkbox
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: done ? color : Colors.transparent,
+                  border: Border.all(
+                    color:
+                        done ? color : Colors.grey.shade400,
+                    width: 1.8,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: done
+                    ? const Icon(Icons.check,
+                        size: 14, color: Colors.white)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              CircleAvatar(
+                  backgroundColor: color, radius: 6),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${subject.name}  ·  $chaptersForDay 課／頁',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: done
+                        ? Colors.grey.shade400
+                        : Colors.black87,
+                    decoration: done
+                        ? TextDecoration.lineThrough
+                        : null,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined,
+                    size: 16, color: Colors.grey),
+                onPressed: onEdit,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
         ),
       ),
     );

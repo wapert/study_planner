@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_provider.dart';
 import '../models/subject.dart';
+import '../models/chapter_plan.dart';
 import '../models/user_profile.dart';
 import '../data/subject_presets.dart';
+import '../widgets/chapter_plan_sheet.dart';
 import 'profile_setup_screen.dart';
 
 const _uuid = Uuid();
@@ -61,11 +63,21 @@ class SubjectsScreen extends StatelessWidget {
               child: Center(child: Text('尚無科目，請套用預設或自行新增')),
             )
           else
-            ...subjects.map((s) => _SubjectTile(
+            ...subjects.expand((s) {
+              final plan = provider.chapterPlanForSubject(s.id);
+              return [
+                _SubjectTile(
                   subject: s,
                   onEdit: () => _showSubjectDialog(context, subject: s),
                   onDelete: () => _confirmDelete(context, s),
-                )),
+                ),
+                _ChapterPlanRow(
+                  subject: s,
+                  plan: plan,
+                  onTap: () => showChapterPlanSheet(context, s, existing: plan),
+                ),
+              ];
+            }),
 
           const SizedBox(height: 80),
         ],
@@ -407,6 +419,83 @@ class _ApplyButton extends StatelessWidget {
     } else {
       await provider.appendSubjectPreset(level);
     }
+  }
+}
+
+// ── Chapter plan row (shown under each subject) ───────────────────────────────
+
+const _wdShort = ['一', '二', '三', '四', '五', '六', '日'];
+
+class _ChapterPlanRow extends StatelessWidget {
+  final Subject subject;
+  final ChapterPlan? plan;
+  final VoidCallback onTap;
+
+  const _ChapterPlanRow({
+    required this.subject,
+    required this.plan,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(subject.colorValue);
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(56, 0, 16, 12),
+        child: plan == null
+            ? Row(
+                children: [
+                  Icon(Icons.menu_book_outlined,
+                      size: 14, color: Colors.grey.shade400),
+                  const SizedBox(width: 6),
+                  Text(
+                    '+ 設定章節計畫',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade400,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Icon(Icons.menu_book_outlined,
+                      size: 14, color: color.withAlpha(180)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '每週 ${plan!.weeklyChapters} 課／頁',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: color,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  ...plan!.studyDays.map((wd) => Container(
+                        margin: const EdgeInsets.only(right: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: color.withAlpha(25),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _wdShort[wd - 1],
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: color,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      )),
+                  const SizedBox(width: 4),
+                  Icon(Icons.edit_outlined,
+                      size: 13, color: Colors.grey.shade400),
+                ],
+              ),
+      ),
+    );
   }
 }
 
