@@ -7,6 +7,7 @@ import 'models/study_session.dart';
 import 'models/calendar_event.dart';
 import 'models/todo_item.dart';
 import 'models/user_profile.dart';
+import 'models/chapter_plan.dart';
 import 'providers/app_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_setup_screen.dart';
@@ -20,6 +21,7 @@ void main() async {
   Hive.registerAdapter(CalendarEventAdapter());
   Hive.registerAdapter(TodoItemAdapter());
   Hive.registerAdapter(UserProfileAdapter());
+  Hive.registerAdapter(ChapterPlanAdapter());
 
   final provider = AppProvider();
   await provider.init();

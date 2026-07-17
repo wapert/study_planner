@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../models/study_session.dart';
 import '../models/subject.dart';
 import '../models/todo_item.dart';
+import '../models/chapter_plan.dart';
 import '../providers/app_provider.dart';
 import '../utils/date_utils.dart';
 
@@ -497,8 +498,12 @@ class _SubjectSection extends StatelessWidget {
     final sessions = provider.sessionsForDay(date)
         .where((s) => s.subjectId == subject.id)
         .toList();
+    final chapterPlan = provider.chapterPlanForSubject(subject.id);
+    final isChapterDay =
+        chapterPlan != null && chapterPlan.isStudyDay(date);
     final color = Color(subject.colorValue);
-    final hasItems = todos.isNotEmpty || sessions.isNotEmpty;
+    final hasItems =
+        todos.isNotEmpty || sessions.isNotEmpty || isChapterDay;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,7 +527,7 @@ class _SubjectSection extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 4),
                   child: Text(
-                    '${todos.where((t) => t.isCompletedOn(date)).length + sessions.where((s) => s.isCompleted).length}/${todos.length + sessions.length}',
+                    '${todos.where((t) => t.isCompletedOn(date)).length + sessions.where((s) => s.isCompleted).length + (isChapterDay && chapterPlan.isCompletedOn(date) ? 1 : 0)}/${todos.length + sessions.length + (isChapterDay ? 1 : 0)}',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   ),
                 ),
@@ -543,6 +548,10 @@ class _SubjectSection extends StatelessWidget {
           ),
         ),
 
+        // Chapter tile (shown when today is a study day)
+        if (isChapterDay)
+          _ChapterDayTile(plan: chapterPlan, date: date, color: color),
+
         // Todo items
         ...todos.map((t) => _TodoTile(todo: t, date: date, color: color)),
 
@@ -551,6 +560,66 @@ class _SubjectSection extends StatelessWidget {
 
         const Divider(height: 1, thickness: 0.6, indent: 20, endIndent: 20),
       ],
+    );
+  }
+}
+
+// ── Chapter day tile ─────────────────────────────────────────────────────────
+
+class _ChapterDayTile extends StatelessWidget {
+  final ChapterPlan plan;
+  final DateTime date;
+  final Color color;
+
+  const _ChapterDayTile({
+    required this.plan,
+    required this.date,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final done = plan.isCompletedOn(date);
+    final chapCount = plan.chaptersForDate(date);
+
+    return InkWell(
+      onTap: () => context.read<AppProvider>().toggleChapterDay(plan, date),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(36, 8, 20, 8),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: done ? color : Colors.transparent,
+                border: Border.all(
+                  color: done ? color : Colors.grey.shade400,
+                  width: 1.8,
+                ),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: done
+                  ? const Icon(Icons.check, size: 13, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Icon(Icons.menu_book_outlined,
+                size: 14,
+                color: done ? Colors.grey.shade400 : color),
+            const SizedBox(width: 6),
+            Text(
+              '今日章節：$chapCount 課',
+              style: TextStyle(
+                fontSize: 15,
+                color: done ? Colors.grey.shade400 : Colors.black87,
+                decoration: done ? TextDecoration.lineThrough : null,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -6,6 +6,7 @@ import '../models/study_session.dart';
 import '../models/calendar_event.dart';
 import '../models/todo_item.dart';
 import '../models/user_profile.dart';
+import '../models/chapter_plan.dart';
 import '../data/taiwan_calendar.dart';
 import '../data/subject_presets.dart';
 import '../utils/date_utils.dart';
@@ -18,12 +19,14 @@ class AppProvider extends ChangeNotifier {
   late Box<CalendarEvent> _eventBox;
   late Box<TodoItem> _todoBox;
   late Box<UserProfile> _profileBox;
+  late Box<ChapterPlan> _chapterPlanBox;
   late Box<bool> _seededBox;
 
   List<Subject> get subjects => _subjectBox.values.toList();
   List<StudySession> get sessions => _sessionBox.values.toList();
   List<CalendarEvent> get events => _eventBox.values.toList();
   List<TodoItem> get todos => _todoBox.values.toList();
+  List<ChapterPlan> get chapterPlans => _chapterPlanBox.values.toList();
 
   UserProfile? get profile =>
       _profileBox.isNotEmpty ? _profileBox.values.first : null;
@@ -36,6 +39,7 @@ class AppProvider extends ChangeNotifier {
     _eventBox = await Hive.openBox<CalendarEvent>('events');
     _todoBox = await Hive.openBox<TodoItem>('todos');
     _profileBox = await Hive.openBox<UserProfile>('profiles');
+    _chapterPlanBox = await Hive.openBox<ChapterPlan>('chapterPlans');
     _seededBox = await Hive.openBox<bool>('meta');
 
     if (_seededBox.get('seeded') != true) {
@@ -227,5 +231,41 @@ class AppProvider extends ChangeNotifier {
     if (subject == null || subject.weeklyGoalMinutes == 0) return 0;
     final done = weeklyMinutesPerSubject(weekStart)[subjectId] ?? 0;
     return (done / subject.weeklyGoalMinutes).clamp(0.0, 1.0);
+  }
+
+  // ── Chapter Plans ──────────────────────────────────────────────────────────
+
+  ChapterPlan? chapterPlanForSubject(String subjectId) =>
+      _chapterPlanBox.values.cast<ChapterPlan?>().firstWhere(
+            (p) => p?.subjectId == subjectId,
+            orElse: () => null,
+          );
+
+  Future<void> saveChapterPlan(ChapterPlan plan) async {
+    await _chapterPlanBox.put(plan.id, plan);
+    notifyListeners();
+  }
+
+  Future<void> deleteChapterPlan(String id) async {
+    await _chapterPlanBox.delete(id);
+    notifyListeners();
+  }
+
+  Future<void> toggleChapterDay(ChapterPlan plan, DateTime date) async {
+    plan.toggleOn(date);
+    await plan.save();
+    notifyListeners();
+  }
+
+  /// Total chapters completed in the week starting at [weekStart].
+  int weeklyChaptersCompleted(ChapterPlan plan, DateTime weekStart) {
+    int count = 0;
+    for (int i = 0; i < 7; i++) {
+      final day = weekStart.add(Duration(days: i));
+      if (plan.isStudyDay(day) && plan.isCompletedOn(day)) {
+        count += plan.chaptersForDate(day);
+      }
+    }
+    return count;
   }
 }
