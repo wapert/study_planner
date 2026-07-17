@@ -112,7 +112,7 @@ class _PlanScreenState extends State<PlanScreen> {
                 ...chapterItems.map((pair) {
                   final plan = pair.$1;
                   final subject = pair.$2!;
-                  final chapCount = plan.chaptersForDate(day);
+                  final rangeLabel = plan.rangeLabelForDate(day);
                   final done = plan.isCompletedOn(day);
                   final color = Color(subject.colorValue);
 
@@ -142,7 +142,7 @@ class _PlanScreenState extends State<PlanScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              '${subject.name}  ·  $chapCount 課／頁',
+                              '${subject.name}  ·  $rangeLabel',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: done
@@ -250,7 +250,7 @@ class _PlanScreenState extends State<PlanScreen> {
                     backgroundColor: Color(s.colorValue), radius: 10),
                 title: Text(s.name),
                 subtitle: existing != null
-                    ? Text('已設定：每週 ${existing.weeklyChapters} 課／頁',
+                    ? Text('已設定：${existing.fullRangeLabel}',
                         style: const TextStyle(fontSize: 12))
                     : null,
                 onTap: () {

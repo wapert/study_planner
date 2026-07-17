@@ -466,7 +466,7 @@ class _ChapterPlanRow extends StatelessWidget {
                       size: 14, color: color.withAlpha(180)),
                   const SizedBox(width: 6),
                   Text(
-                    '每週 ${plan!.weeklyChapters} 課／頁',
+                    plan!.fullRangeLabel,
                     style: TextStyle(
                         fontSize: 12,
                         color: color,

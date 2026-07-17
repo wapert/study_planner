@@ -580,7 +580,7 @@ class _ChapterDayTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final done = plan.isCompletedOn(date);
-    final chapCount = plan.chaptersForDate(date);
+    final rangeLabel = plan.rangeLabelForDate(date);
 
     return InkWell(
       onTap: () => context.read<AppProvider>().toggleChapterDay(plan, date),
@@ -610,7 +610,7 @@ class _ChapterDayTile extends StatelessWidget {
                 color: done ? Colors.grey.shade400 : color),
             const SizedBox(width: 6),
             Text(
-              '今日章節：$chapCount 課',
+              rangeLabel,
               style: TextStyle(
                 fontSize: 15,
                 color: done ? Colors.grey.shade400 : Colors.black87,

@@ -29,7 +29,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final sessions = provider.sessionsForDay(_selected);
     final events = provider.eventsForDay(_selected);
 
-    // Chapter plans active on the selected day
+    // Chapter plans active on the selected day (plan, rangeLabel)
     final chapterItems = _chapterItemsForDay(provider, _selected);
 
     return Scaffold(
@@ -92,7 +92,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         subject: provider
                             .subjectById(item.$1.subjectId),
                         date: _selected,
-                        chaptersForDay: item.$2,
+                        rangeLabel: item.$2,
                         onToggle: () => provider.toggleChapterDay(
                             item.$1, _selected),
                         onEdit: () {
@@ -160,13 +160,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  /// Returns (ChapterPlan, chaptersForDate) tuples active on [day].
-  List<(ChapterPlan, int)> _chapterItemsForDay(
+  /// Returns (ChapterPlan, rangeLabel) tuples active on [day].
+  List<(ChapterPlan, String)> _chapterItemsForDay(
       AppProvider provider, DateTime day) {
-    final result = <(ChapterPlan, int)>[];
+    final result = <(ChapterPlan, String)>[];
     for (final plan in provider.chapterPlans) {
       if (plan.isStudyDay(day)) {
-        result.add((plan, plan.chaptersForDate(day)));
+        result.add((plan, plan.rangeLabelForDate(day)));
       }
     }
     return result;
@@ -235,7 +235,7 @@ class _ChapterCalendarTile extends StatelessWidget {
   final ChapterPlan plan;
   final dynamic subject;
   final DateTime date;
-  final int chaptersForDay;
+  final String rangeLabel;
   final VoidCallback onToggle;
   final VoidCallback onEdit;
 
@@ -243,7 +243,7 @@ class _ChapterCalendarTile extends StatelessWidget {
     required this.plan,
     required this.subject,
     required this.date,
-    required this.chaptersForDay,
+    required this.rangeLabel,
     required this.onToggle,
     required this.onEdit,
   });
@@ -289,7 +289,7 @@ class _ChapterCalendarTile extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${subject.name}  ·  $chaptersForDay 課／頁',
+                  '${subject.name}  ·  $rangeLabel',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,

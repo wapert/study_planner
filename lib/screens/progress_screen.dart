@@ -123,7 +123,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               if (subject == null) return const SizedBox.shrink();
               final completed =
                   provider.weeklyChaptersCompleted(plan, _weekStart);
-              final total = plan.weeklyChapters;
+              final total = plan.totalCount;
               final progress =
                   total > 0 ? (completed / total).clamp(0.0, 1.0) : 0.0;
               final color = Color(subject.colorValue);
@@ -149,14 +149,25 @@ class _ProgressScreenState extends State<ProgressScreen> {
                             style: const TextStyle(
                                 fontWeight: FontWeight.w600)),
                         const Spacer(),
-                        Text(
-                          '$completed / $total 課',
-                          style: TextStyle(
-                              fontSize: 13,
-                              color: completed >= total
-                                  ? Colors.green.shade700
-                                  : Colors.grey.shade600,
-                              fontWeight: FontWeight.w500),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              plan.fullRangeLabel,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500),
+                            ),
+                            Text(
+                              '$completed / $total${plan.unitLabel}',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: completed >= total
+                                      ? Colors.green.shade700
+                                      : Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -176,8 +187,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       spacing: 6,
                       runSpacing: 6,
                       children: studyDates.map((day) {
-                        final chapCount =
-                            plan.chaptersForDate(day);
                         final done = plan.isCompletedOn(day);
                         return Container(
                           padding: const EdgeInsets.symmetric(
@@ -194,7 +203,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                                     : color.withAlpha(70)),
                           ),
                           child: Text(
-                            '週${_wdShort[day.weekday - 1]} $chapCount課${done ? ' ✓' : ''}',
+                            '週${_wdShort[day.weekday - 1]} ${plan.rangeLabelForDate(day)}${done ? ' ✓' : ''}',
                             style: TextStyle(
                                 fontSize: 12,
                                 color: done
