@@ -299,7 +299,9 @@ class _ChapterCalendarTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: done ? Colors.grey : color,
+                    color: done
+                        ? Colors.grey
+                        : Theme.of(context).colorScheme.onSurface,
                     decoration: done
                         ? TextDecoration.lineThrough
                         : null,

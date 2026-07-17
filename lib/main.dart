@@ -50,13 +50,9 @@ class StudyPlannerApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      // App is designed light-only (今日/科目 pages use fixed white backgrounds),
+      // so dark system theme would make other pages unreadable.
+      themeMode: ThemeMode.light,
       routes: {
         '/home': (_) => const HomeScreen(),
       },
