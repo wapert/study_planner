@@ -145,9 +145,10 @@ class _PlanScreenState extends State<PlanScreen> {
                               '${subject.name}  ·  $rangeLabel',
                               style: TextStyle(
                                 fontSize: 14,
+                                fontWeight: FontWeight.w500,
                                 color: done
-                                    ? Colors.grey.shade400
-                                    : Colors.black87,
+                                    ? Colors.grey
+                                    : color,
                                 decoration: done
                                     ? TextDecoration.lineThrough
                                     : null,

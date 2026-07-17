@@ -256,6 +256,12 @@ class _ChapterCalendarTile extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      color: color.withAlpha(22),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: color.withAlpha(70)),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onToggle,
@@ -292,10 +298,8 @@ class _ChapterCalendarTile extends StatelessWidget {
                   '${subject.name}  ·  $rangeLabel',
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: done
-                        ? Colors.grey.shade400
-                        : Colors.black87,
+                    fontWeight: FontWeight.w600,
+                    color: done ? Colors.grey : color,
                     decoration: done
                         ? TextDecoration.lineThrough
                         : null,
