@@ -242,6 +242,13 @@ class AppProvider extends ChangeNotifier {
           );
 
   Future<void> saveChapterPlan(ChapterPlan plan) async {
+    // Keep one plan per subject: remove any other (e.g. expired) plans first.
+    final others = _chapterPlanBox.values
+        .where((p) => p.subjectId == plan.subjectId && p.id != plan.id)
+        .toList();
+    for (final o in others) {
+      await o.delete();
+    }
     await _chapterPlanBox.put(plan.id, plan);
     notifyListeners();
   }
@@ -262,7 +269,7 @@ class AppProvider extends ChangeNotifier {
     int count = 0;
     for (int i = 0; i < 7; i++) {
       final day = weekStart.add(Duration(days: i));
-      if (plan.isStudyDay(day) && plan.isCompletedOn(day)) {
+      if (plan.activeOn(day) && plan.isCompletedOn(day)) {
         count += plan.chaptersForDate(day);
       }
     }

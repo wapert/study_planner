@@ -500,7 +500,7 @@ class _SubjectSection extends StatelessWidget {
         .toList();
     final chapterPlan = provider.chapterPlanForSubject(subject.id);
     final isChapterDay =
-        chapterPlan != null && chapterPlan.isStudyDay(date);
+        chapterPlan != null && chapterPlan.activeOn(date);
     final color = Color(subject.colorValue);
     final hasItems =
         todos.isNotEmpty || sessions.isNotEmpty || isChapterDay;

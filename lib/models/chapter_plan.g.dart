@@ -13,10 +13,18 @@ class ChapterPlanAdapter extends TypeAdapter<ChapterPlan> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    // Backward-compat: old format had field[2] = weeklyChapters (total count).
-    // New format has field[2] = startNum, field[5] = endNum, field[6] = unitIndex.
-    final isOldFormat = !fields.containsKey(5);
-    if (isOldFormat) {
+
+    // Defaults for records saved before the period fields existed:
+    // treat them as valid for the current week (Mon–Sun).
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final sunday = monday.add(const Duration(days: 6));
+    final defaultStartKey = ChapterPlan.dateKeyOf(monday);
+    final defaultEndKey = ChapterPlan.dateKeyOf(sunday);
+
+    // Oldest format: field[2] was a weekly total count (no field 5).
+    final isCountFormat = !fields.containsKey(5);
+    if (isCountFormat) {
       final oldTotal = fields[2] as int;
       return ChapterPlan(
         id: fields[0] as String,
@@ -26,8 +34,11 @@ class ChapterPlanAdapter extends TypeAdapter<ChapterPlan> {
         unitIndex: 0,
         studyDays: (fields[3] as List).cast<int>(),
         completedKeys: (fields[4] as List?)?.cast<int>() ?? [],
+        startDateKey: defaultStartKey,
+        endDateKey: defaultEndKey,
       );
     }
+
     return ChapterPlan(
       id: fields[0] as String,
       subjectId: fields[1] as String,
@@ -36,13 +47,15 @@ class ChapterPlanAdapter extends TypeAdapter<ChapterPlan> {
       completedKeys: (fields[4] as List?)?.cast<int>() ?? [],
       endNum: fields[5] as int,
       unitIndex: fields[6] as int? ?? 0,
+      startDateKey: fields[7] as int? ?? defaultStartKey,
+      endDateKey: fields[8] as int? ?? defaultEndKey,
     );
   }
 
   @override
   void write(BinaryWriter writer, ChapterPlan obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +69,11 @@ class ChapterPlanAdapter extends TypeAdapter<ChapterPlan> {
       ..writeByte(5)
       ..write(obj.endNum)
       ..writeByte(6)
-      ..write(obj.unitIndex);
+      ..write(obj.unitIndex)
+      ..writeByte(7)
+      ..write(obj.startDateKey)
+      ..writeByte(8)
+      ..write(obj.endDateKey);
   }
 
   @override

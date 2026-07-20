@@ -57,7 +57,7 @@ class _PlanScreenState extends State<PlanScreen> {
 
           // Chapter plans active on this day
           final chapterItems = provider.chapterPlans
-              .where((p) => p.isStudyDay(day))
+              .where((p) => p.activeOn(day))
               .map((p) => (p, provider.subjectById(p.subjectId)))
               .where((pair) => pair.$2 != null)
               .toList();
@@ -247,7 +247,9 @@ class _PlanScreenState extends State<PlanScreen> {
           child: ListView(
             shrinkWrap: true,
             children: subjects.map((s) {
-              final existing = provider.chapterPlanForSubject(s.id);
+              final raw = provider.chapterPlanForSubject(s.id);
+              final existing =
+                  (raw != null && !raw.isExpired) ? raw : null;
               return ListTile(
                 leading: CircleAvatar(
                     backgroundColor: Color(s.colorValue), radius: 10),

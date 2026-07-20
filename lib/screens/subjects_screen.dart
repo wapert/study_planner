@@ -64,7 +64,9 @@ class SubjectsScreen extends StatelessWidget {
             )
           else
             ...subjects.expand((s) {
-              final plan = provider.chapterPlanForSubject(s.id);
+              final raw = provider.chapterPlanForSubject(s.id);
+              // Expired plans are treated as absent (show blank / add state).
+              final plan = (raw != null && !raw.isExpired) ? raw : null;
               return [
                 _SubjectTile(
                   subject: s,
@@ -466,7 +468,7 @@ class _ChapterPlanRow extends StatelessWidget {
                       size: 14, color: color.withAlpha(180)),
                   const SizedBox(width: 6),
                   Text(
-                    plan!.fullRangeLabel,
+                    '${plan!.fullRangeLabel}（${plan!.dateRangeLabel}）',
                     style: TextStyle(
                         fontSize: 12,
                         color: color,

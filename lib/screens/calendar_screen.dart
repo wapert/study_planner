@@ -165,7 +165,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       AppProvider provider, DateTime day) {
     final result = <(ChapterPlan, String)>[];
     for (final plan in provider.chapterPlans) {
-      if (plan.isStudyDay(day)) {
+      if (plan.activeOn(day)) {
         result.add((plan, plan.rangeLabelForDate(day)));
       }
     }

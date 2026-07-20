@@ -22,7 +22,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final totalMin = provider.totalMinutesThisWeek(_weekStart);
     final perSubject = provider.weeklyMinutesPerSubject(_weekStart);
     final subjects = provider.subjects;
-    final chapterPlans = provider.chapterPlans;
+    final chapterPlans =
+        provider.chapterPlans.where((p) => !p.isExpired).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -132,7 +133,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               final studyDates = <DateTime>[];
               for (int i = 0; i < 7; i++) {
                 final d = _weekStart.add(Duration(days: i));
-                if (plan.isStudyDay(d)) studyDates.add(d);
+                if (plan.activeOn(d)) studyDates.add(d);
               }
 
               return Padding(
