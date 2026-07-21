@@ -261,7 +261,7 @@ class _ProfileCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            color: Colors.black,
+            color: const Color(0xFF1565C0),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -381,7 +381,7 @@ class _ApplyButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        backgroundColor: Colors.black,
+        backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
         textStyle: const TextStyle(fontSize: 12),
       ),
@@ -409,7 +409,8 @@ class _ApplyButton extends StatelessWidget {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('新增缺少的')),
           FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.black),
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF1565C0)),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('全部取代')),
         ],
