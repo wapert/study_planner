@@ -100,7 +100,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         decoration: BoxDecoration(
                           color: selected
-                              ? Colors.black
+                              ? const Color(0xFF1565C0)
                               : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -191,7 +191,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: const Color(0xFF1565C0),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
@@ -277,7 +277,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('新增缺少的')),
           FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.black),
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF1565C0)),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('全部取代')),
         ],
