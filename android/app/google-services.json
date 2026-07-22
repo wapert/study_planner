@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1032477261150",
+    "project_id": "study-planner-260721-1286",
+    "storage_bucket": "study-planner-260721-1286.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1032477261150:android:71808cb274b92c46d7a3cf",
+        "android_client_info": {
+          "package_name": "com.wapertech.study_planner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBu1s88dYEFShH3Qhoy9dLXd7uWeicN-2I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

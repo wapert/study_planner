@@ -33,6 +33,77 @@ class AppProvider extends ChangeNotifier {
 
   bool get hasProfile => _profileBox.isNotEmpty;
 
+  /// Set when the user taps 略過 on first-launch setup; lets the app proceed
+  /// without a profile for this session.
+  bool profileSetupDismissed = false;
+  void dismissProfileSetup() {
+    profileSetupDismissed = true;
+    notifyListeners();
+  }
+
+  // ── Sync support ────────────────────────────────────────────────────────────
+  /// While true, mutations should NOT be echoed back to the cloud
+  /// (they originated from a remote pull).
+  bool suppressSync = false;
+
+  /// Public trigger so the sync layer can refresh the UI after a batch apply.
+  void bumpUi() => notifyListeners();
+
+  Box _boxFor(String collection) {
+    switch (collection) {
+      case 'subjects':
+        return _subjectBox;
+      case 'sessions':
+        return _sessionBox;
+      case 'events':
+        return _eventBox;
+      case 'todos':
+        return _todoBox;
+      case 'profiles':
+        return _profileBox;
+      case 'chapterPlans':
+        return _chapterPlanBox;
+    }
+    throw ArgumentError('Unknown collection $collection');
+  }
+
+  /// All local records for a collection.
+  List<dynamic> recordsFor(String collection) =>
+      _boxFor(collection).values.toList();
+
+  String idOf(dynamic record) => record.id as String;
+
+  /// Apply a batch of remote changes without re-triggering a push.
+  /// [byId] maps record id → object (null means delete).
+  Future<void> applyRemoteBatch(
+      String collection, Map<String, dynamic> byId) async {
+    suppressSync = true;
+    final box = _boxFor(collection);
+    for (final entry in byId.entries) {
+      if (entry.value == null) {
+        await box.delete(entry.key);
+      } else {
+        await box.put(entry.key, entry.value);
+      }
+    }
+    notifyListeners();
+    suppressSync = false;
+  }
+
+  /// Wipe all user data (used when switching accounts). Keeps the seeded flag
+  /// so defaults are not re-seeded for the incoming account's fresh pull.
+  Future<void> wipeLocalData() async {
+    suppressSync = true;
+    await _subjectBox.clear();
+    await _sessionBox.clear();
+    await _eventBox.clear();
+    await _todoBox.clear();
+    await _profileBox.clear();
+    await _chapterPlanBox.clear();
+    notifyListeners();
+    suppressSync = false;
+  }
+
   Future<void> init() async {
     _subjectBox = await Hive.openBox<Subject>('subjects');
     _sessionBox = await Hive.openBox<StudySession>('sessions');
