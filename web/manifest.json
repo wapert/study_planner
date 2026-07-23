@@ -1,11 +1,11 @@
 {
-    "name": "study_planner",
-    "short_name": "study_planner",
+    "name": "讀書計畫 Study Planner",
+    "short_name": "讀書計畫",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1565C0",
+    "theme_color": "#1565C0",
+    "description": "專為台灣國高中生設計的讀書計畫與行事曆 App，章節進度自動分配、雲端同步。",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
