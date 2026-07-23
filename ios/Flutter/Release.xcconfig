@@ -1,1 +1,4 @@
 #include "Generated.xcconfig"
+
+DEVELOPMENT_TEAM=NR6H8UUF43
+CODE_SIGN_STYLE=Automatic
