@@ -254,13 +254,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     if (!mounted) return;
     if (_isEdit) {
       Navigator.pop(context);
-    } else {
-      Navigator.pushReplacementNamed(context, '/home');
     }
+    // First-launch mode: saving the profile makes hasProfile true, so the
+    // AuthGate rebuilds into HomeScreen automatically — no navigation needed.
   }
 
   void _skipSetup(BuildContext context) {
-    Navigator.pushReplacementNamed(context, '/home');
+    // Let the app proceed without a profile; AuthGate reacts to this flag.
+    context.read<AppProvider>().dismissProfileSetup();
   }
 
   Future<bool?> _showReplaceDialog() {

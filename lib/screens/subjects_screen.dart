@@ -8,6 +8,7 @@ import '../models/user_profile.dart';
 import '../data/subject_presets.dart';
 import '../widgets/chapter_plan_sheet.dart';
 import 'profile_setup_screen.dart';
+import 'account_screen.dart';
 
 const _uuid = Uuid();
 
@@ -27,7 +28,20 @@ class SubjectsScreen extends StatelessWidget {
     final profile = provider.profile;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('科目管理'), centerTitle: false),
+      appBar: AppBar(
+        title: const Text('科目管理'),
+        centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: '帳號與同步',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AccountScreen()),
+            ),
+          ),
+        ],
+      ),
       body: ListView(
         children: [
           // ── Profile card ────────────────────────────────────────────────
