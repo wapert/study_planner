@@ -181,7 +181,101 @@ class AccountScreen extends StatelessWidget {
               }
             },
           ),
+
+          const SizedBox(height: 8),
+
+          // ── Delete account (Apple requires in-app deletion) ─────────────
+          TextButton.icon(
+            icon: const Icon(Icons.delete_forever,
+                color: Colors.red, size: 18),
+            label: const Text('刪除帳號',
+                style: TextStyle(color: Colors.red)),
+            onPressed: () => _showDeleteAccountDialog(context),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              '刪除帳號將永久移除你的帳號與所有雲端資料，此動作無法復原。',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    final pwCtrl = TextEditingController();
+    String? error;
+    bool busy = false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('刪除帳號'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                  '此動作將永久刪除你的帳號與所有雲端資料，且無法復原。\n請輸入密碼以確認。'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: pwCtrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: '密碼',
+                  errorText: error,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: busy ? null : () => Navigator.pop(ctx),
+                child: const Text('取消')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: busy
+                  ? null
+                  : () async {
+                      if (pwCtrl.text.isEmpty) {
+                        setState(() => error = '請輸入密碼');
+                        return;
+                      }
+                      setState(() {
+                        busy = true;
+                        error = null;
+                      });
+                      final auth = ctx.read<AuthService>();
+                      final sync = ctx.read<SyncService>();
+                      try {
+                        await auth.reauthenticate(pwCtrl.text);
+                        await sync.deleteAllCloudData();
+                        await auth.deleteAccount();
+                        // AuthGate reacts to sign-out and returns to login.
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      } catch (e) {
+                        setState(() {
+                          busy = false;
+                          error = AuthService.messageFor(e);
+                        });
+                      }
+                    },
+              child: busy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('永久刪除'),
+            ),
+          ],
+        ),
       ),
     );
   }

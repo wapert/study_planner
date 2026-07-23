@@ -243,6 +243,47 @@ class SyncService extends ChangeNotifier {
 
   Future<void> syncNow() async => _pushAll();
 
+  /// Permanently delete ALL of the signed-in user's cloud data:
+  /// their study collections, sharing grants, and discovery index entries.
+  /// Call before deleting the auth account.
+  Future<void> deleteAllCloudData() async {
+    final uid = _uid ?? auth.uid;
+    if (uid == null) return;
+    // Stop listeners so deletions don't echo back locally mid-delete.
+    for (final s in _collectionSubs) {
+      await s.cancel();
+    }
+    _collectionSubs.clear();
+
+    final userDoc = _db.collection('users').doc(uid);
+
+    // Remove sharing grants + the viewer's discovery-index entry.
+    final viewers = await userDoc.collection('viewers').get();
+    for (final v in viewers.docs) {
+      await _db
+          .collection('shares')
+          .doc(v.id)
+          .collection('from')
+          .doc(uid)
+          .delete()
+          .catchError((_) {});
+      await v.reference.delete();
+    }
+
+    // Remove all study data.
+    for (final col in Collections.all) {
+      final snap = await userDoc.collection(col).get();
+      for (final d in snap.docs) {
+        await d.reference.delete();
+      }
+    }
+    await userDoc.delete().catchError((_) {});
+
+    await _clearMeta();
+    await _meta?.delete('__lastUid__');
+    _setStatus(SyncStatus.offline);
+  }
+
   @override
   void dispose() {
     _authSub?.cancel();

@@ -30,6 +30,22 @@ class AuthService {
     await _auth.signOut();
   }
 
+  /// Re-authenticate with the current email + password. Firebase requires a
+  /// recent login before sensitive operations like account deletion.
+  Future<void> reauthenticate(String password) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) throw Exception('尚未登入');
+    final cred =
+        EmailAuthProvider.credential(email: user.email!, password: password);
+    await user.reauthenticateWithCredential(cred);
+  }
+
+  /// Permanently delete the Firebase Auth account. Call after cloud data is
+  /// removed and after a recent [reauthenticate].
+  Future<void> deleteAccount() async {
+    await _auth.currentUser?.delete();
+  }
+
   /// Maps FirebaseAuthException codes to friendly Traditional-Chinese messages.
   static String messageFor(Object error) {
     if (error is FirebaseAuthException) {
