@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/app_provider.dart';
 import '../utils/date_utils.dart';
+import '../widgets/account_button.dart';
 
 const _wdShort = ['一', '二', '三', '四', '五', '六', '日'];
 
@@ -45,6 +46,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             onPressed: () => setState(() =>
                 _weekStart = _weekStart.add(const Duration(days: 7))),
           ),
+          const AccountButton(),
         ],
       ),
       body: ListView(

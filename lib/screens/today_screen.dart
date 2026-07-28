@@ -6,6 +6,7 @@ import '../models/subject.dart';
 import '../models/todo_item.dart';
 import '../models/chapter_plan.dart';
 import '../providers/app_provider.dart';
+import '../widgets/account_button.dart';
 import '../utils/date_utils.dart';
 
 const _uuid = Uuid();
@@ -63,6 +64,7 @@ class _TodayScreenState extends State<TodayScreen> {
                     tooltip: '新增一般待辦',
                     onPressed: () => _showTodoSheet(context, null),
                   ),
+                  const AccountButton(),
                 ],
               ),
             ),

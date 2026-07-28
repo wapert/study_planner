@@ -6,6 +6,7 @@ import '../models/study_session.dart';
 import '../utils/date_utils.dart';
 import '../widgets/session_tile.dart';
 import '../widgets/chapter_plan_sheet.dart';
+import '../widgets/account_button.dart';
 
 const _uuid = Uuid();
 
@@ -45,6 +46,7 @@ class _PlanScreenState extends State<PlanScreen> {
             onPressed: () => setState(() =>
                 _weekStart = _weekStart.add(const Duration(days: 7))),
           ),
+          const AccountButton(),
         ],
       ),
       body: ListView.builder(

@@ -9,6 +9,7 @@ import '../utils/date_utils.dart';
 import '../widgets/session_tile.dart';
 import '../widgets/event_chip.dart';
 import '../widgets/chapter_plan_sheet.dart';
+import '../widgets/account_button.dart';
 
 const _uuid = Uuid();
 
@@ -33,7 +34,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final chapterItems = _chapterItemsForDay(provider, _selected);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('行事曆'), centerTitle: false),
+      appBar: AppBar(
+        title: const Text('行事曆'),
+        centerTitle: false,
+        actions: const [AccountButton()],
+      ),
       body: Column(
         children: [
           TableCalendar(
