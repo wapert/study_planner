@@ -126,6 +126,7 @@ Map<String, dynamic> chapterPlanToMap(ChapterPlan c) => {
       'completedKeys': c.completedKeys,
       'startDateKey': c.startDateKey,
       'endDateKey': c.endDateKey,
+      'version': c.version,
     };
 
 ChapterPlan chapterPlanFromMap(Map<String, dynamic> m) => ChapterPlan(
@@ -140,6 +141,7 @@ ChapterPlan chapterPlanFromMap(Map<String, dynamic> m) => ChapterPlan(
           .toList(),
       startDateKey: (m['startDateKey'] as num).toInt(),
       endDateKey: (m['endDateKey'] as num).toInt(),
+      version: (m['version'] as String?) ?? '',
     );
 
 /// Serialize any known record by collection name.

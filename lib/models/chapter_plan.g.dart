@@ -49,13 +49,14 @@ class ChapterPlanAdapter extends TypeAdapter<ChapterPlan> {
       unitIndex: fields[6] as int? ?? 0,
       startDateKey: fields[7] as int? ?? defaultStartKey,
       endDateKey: fields[8] as int? ?? defaultEndKey,
+      version: fields[9] as String? ?? '',
     );
   }
 
   @override
   void write(BinaryWriter writer, ChapterPlan obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -73,7 +74,9 @@ class ChapterPlanAdapter extends TypeAdapter<ChapterPlan> {
       ..writeByte(7)
       ..write(obj.startDateKey)
       ..writeByte(8)
-      ..write(obj.endDateKey);
+      ..write(obj.endDateKey)
+      ..writeByte(9)
+      ..write(obj.version);
   }
 
   @override

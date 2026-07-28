@@ -35,6 +35,11 @@ class ChapterPlan extends HiveObject {
   @HiveField(8)
   int endDateKey;
 
+  /// Material type / edition, e.g. 講義 / 自修 / 課本 / 測驗卷, or a custom label.
+  /// Empty when unset.
+  @HiveField(9)
+  String version;
+
   ChapterPlan({
     required this.id,
     required this.subjectId,
@@ -44,8 +49,14 @@ class ChapterPlan extends HiveObject {
     required this.startDateKey,
     required this.endDateKey,
     this.unitIndex = 0,
+    this.version = '',
     List<int>? completedKeys,
   }) : completedKeys = completedKeys ?? [];
+
+  bool get hasVersion => version.trim().isNotEmpty;
+
+  /// "課本 · " prefix for labels, or empty when no version set.
+  String get versionPrefix => hasVersion ? '${version.trim()} · ' : '';
 
   String get unitLabel => unitIndex == 0 ? '課' : '頁';
   int get totalCount => (endNum - startNum + 1).clamp(1, 99999);

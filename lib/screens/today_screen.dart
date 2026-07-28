@@ -580,7 +580,7 @@ class _ChapterDayTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final done = plan.isCompletedOn(date);
-    final rangeLabel = plan.rangeLabelForDate(date);
+    final rangeLabel = '${plan.versionPrefix}${plan.rangeLabelForDate(date)}';
 
     return InkWell(
       onTap: () => context.read<AppProvider>().toggleChapterDay(plan, date),

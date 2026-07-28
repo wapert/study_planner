@@ -482,12 +482,15 @@ class _ChapterPlanRow extends StatelessWidget {
                   Icon(Icons.menu_book_outlined,
                       size: 14, color: color.withAlpha(180)),
                   const SizedBox(width: 6),
-                  Text(
-                    '${plan!.fullRangeLabel}（${plan!.dateRangeLabel}）',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: color,
-                        fontWeight: FontWeight.w600),
+                  Flexible(
+                    child: Text(
+                      '${plan!.versionPrefix}${plan!.fullRangeLabel}（${plan!.dateRangeLabel}）',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: color,
+                          fontWeight: FontWeight.w600),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   ...plan!.studyDays.map((wd) => Container(

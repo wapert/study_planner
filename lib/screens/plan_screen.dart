@@ -112,7 +112,8 @@ class _PlanScreenState extends State<PlanScreen> {
                 ...chapterItems.map((pair) {
                   final plan = pair.$1;
                   final subject = pair.$2!;
-                  final rangeLabel = plan.rangeLabelForDate(day);
+                  final rangeLabel =
+                      '${plan.versionPrefix}${plan.rangeLabelForDate(day)}';
                   final done = plan.isCompletedOn(day);
                   final color = Color(subject.colorValue);
 

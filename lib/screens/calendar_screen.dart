@@ -166,7 +166,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final result = <(ChapterPlan, String)>[];
     for (final plan in provider.chapterPlans) {
       if (plan.activeOn(day)) {
-        result.add((plan, plan.rangeLabelForDate(day)));
+        result.add((plan,
+            '${plan.versionPrefix}${plan.rangeLabelForDate(day)}'));
       }
     }
     return result;

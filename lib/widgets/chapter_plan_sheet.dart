@@ -42,6 +42,8 @@ class _SheetBody extends StatefulWidget {
   State<_SheetBody> createState() => _SheetBodyState();
 }
 
+const _versionPresets = ['講義', '自修', '課本', '測驗卷'];
+
 class _SheetBodyState extends State<_SheetBody> {
   late int _unitIndex; // 0=課 1=頁
   late TextEditingController _startCtrl;
@@ -50,6 +52,9 @@ class _SheetBodyState extends State<_SheetBody> {
   late _PeriodMode _mode;
   late DateTime _customStart;
   late DateTime _customEnd;
+  String? _selectedVersion; // one of _versionPresets, or null
+  bool _customVersion = false;
+  late TextEditingController _versionCtrl;
 
   @override
   void initState() {
@@ -58,6 +63,22 @@ class _SheetBodyState extends State<_SheetBody> {
     _unitIndex = e?.unitIndex ?? 0;
     _startCtrl = TextEditingController(text: '${e?.startNum ?? 1}');
     _endCtrl = TextEditingController(text: '${e?.endNum ?? 10}');
+
+    // Version (material type)
+    final v = e?.version ?? '';
+    if (v.isEmpty) {
+      _selectedVersion = null;
+      _customVersion = false;
+      _versionCtrl = TextEditingController();
+    } else if (_versionPresets.contains(v)) {
+      _selectedVersion = v;
+      _customVersion = false;
+      _versionCtrl = TextEditingController();
+    } else {
+      _selectedVersion = null;
+      _customVersion = true;
+      _versionCtrl = TextEditingController(text: v);
+    }
     if (e != null) {
       _days = {...e.studyDays};
     } else if (widget.preselectedDay != null) {
@@ -96,10 +117,14 @@ class _SheetBodyState extends State<_SheetBody> {
   void dispose() {
     _startCtrl.dispose();
     _endCtrl.dispose();
+    _versionCtrl.dispose();
     super.dispose();
   }
 
   Color get _color => Color(widget.subject.colorValue);
+
+  String get _finalVersion =>
+      _customVersion ? _versionCtrl.text.trim() : (_selectedVersion ?? '');
 
   int get _start => int.tryParse(_startCtrl.text) ?? 1;
   int get _end => int.tryParse(_endCtrl.text) ?? 1;
@@ -252,6 +277,62 @@ class _SheetBodyState extends State<_SheetBody> {
                 style: TextStyle(
                     fontSize: 12, color: Colors.grey.shade500),
               ),
+            const SizedBox(height: 20),
+
+            // ── Version (material type) ─────────────────────────────────
+            _Label('版本'),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final v in _versionPresets)
+                  _ModeChip(
+                    label: v,
+                    selected: !_customVersion && _selectedVersion == v,
+                    color: _color,
+                    onTap: () => setState(() {
+                      _selectedVersion = v;
+                      _customVersion = false;
+                    }),
+                  ),
+                _ModeChip(
+                  label: '自訂',
+                  selected: _customVersion,
+                  color: _color,
+                  onTap: () => setState(() {
+                    _customVersion = true;
+                    _selectedVersion = null;
+                  }),
+                ),
+              ],
+            ),
+            if (_customVersion) ...[
+              const SizedBox(height: 10),
+              TextField(
+                controller: _versionCtrl,
+                decoration: InputDecoration(
+                  hintText: '輸入版本名稱',
+                  isDense: true,
+                  filled: true,
+                  fillColor: _color.withAlpha(15),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _color.withAlpha(60)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _color.withAlpha(60)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _color, width: 1.6),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
 
             // ── Unit picker ─────────────────────────────────────────────
@@ -422,6 +503,7 @@ class _SheetBodyState extends State<_SheetBody> {
                               startDateKey:
                                   ChapterPlan.dateKeyOf(pS),
                               endDateKey: ChapterPlan.dateKeyOf(pE),
+                              version: _finalVersion,
                               completedKeys:
                                   widget.existing?.completedKeys,
                             );
