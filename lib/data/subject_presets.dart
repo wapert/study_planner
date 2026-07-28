@@ -27,6 +27,7 @@ const _seniorPresets = [
   SubjectPreset('地科', 0xFF546E7A),
   SubjectPreset('歷史', 0xFF6D4C41),
   SubjectPreset('地理', 0xFFEF6C00),
+  SubjectPreset('公民', 0xFF00ACC1),
   SubjectPreset('選修', 0xFFEC407A),
 ];
 
