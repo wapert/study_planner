@@ -125,9 +125,14 @@ class _SharedPlanScreenState extends State<SharedPlanScreen> {
 
 // ── Shared data helpers ───────────────────────────────────────────────────────
 
-List<StudySession> _sessionsForDay(List<StudySession> all, DateTime day) {
+List<StudySession> _sessionsForDay(
+    List<StudySession> all, List<Subject> subjects, DateTime day) {
   final d = day.dateOnly;
-  return all.where((s) => s.date.dateOnly.isSameDay(d)).toList()
+  return all
+      .where((s) =>
+          s.date.dateOnly.isSameDay(d) &&
+          _subjectById(subjects, s.subjectId) != null)
+      .toList()
     ..sort((a, b) => a.startHour != b.startHour
         ? a.startHour.compareTo(b.startHour)
         : a.startMinute.compareTo(b.startMinute));
@@ -348,7 +353,8 @@ class _PlanTabState extends State<_PlanTab> {
         ...List.generate(7, (i) {
           final day = _weekStart.add(Duration(days: i));
           final isToday = day.dateOnly.isSameDay(DateTime.now().dateOnly);
-          final daySessions = _sessionsForDay(widget.sessions, day);
+          final daySessions =
+              _sessionsForDay(widget.sessions, widget.subjects, day);
           final dayPlans = widget.plans
               .where((p) => p.activeOn(day))
               .map((p) => (p, _subjectById(widget.subjects, p.subjectId)))
@@ -492,7 +498,7 @@ class _CalendarTabState extends State<_CalendarTab> {
   DateTime _selected = DateTime.now().dateOnly;
 
   List<dynamic> _markersFor(DateTime day) => [
-        ..._sessionsForDay(widget.sessions, day),
+        ..._sessionsForDay(widget.sessions, widget.subjects, day),
         ..._eventsForDay(widget.events, day),
         ...widget.plans.where((p) => p.activeOn(day)),
       ];
@@ -500,7 +506,8 @@ class _CalendarTabState extends State<_CalendarTab> {
   @override
   Widget build(BuildContext context) {
     final events = _eventsForDay(widget.events, _selected);
-    final sessions = _sessionsForDay(widget.sessions, _selected);
+    final sessions =
+        _sessionsForDay(widget.sessions, widget.subjects, _selected);
     final dayPlans = widget.plans
         .where((p) => p.activeOn(_selected))
         .map((p) => (p, _subjectById(widget.subjects, p.subjectId)))

@@ -143,6 +143,13 @@ class AppProvider extends ChangeNotifier {
   /// Replace all subjects with the preset for [level].
   Future<void> applySubjectPreset(SchoolLevel level) async {
     await _subjectBox.clear();
+    // All old subjects are replaced with new-id presets, so their sessions,
+    // chapter plans, and subject-linked todos would orphan — clear them.
+    await _sessionBox.clear();
+    await _chapterPlanBox.clear();
+    for (final t in _todoBox.values.where((t) => t.subjectId != null).toList()) {
+      await t.delete();
+    }
     final presets = buildSubjects(level, () => _uuid.v4());
     for (final s in presets) {
       await _subjectBox.put(s.id, s);
@@ -176,8 +183,17 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> deleteSubject(String id) async {
     await _subjectBox.delete(id);
-    final toDelete = _sessionBox.values.where((s) => s.subjectId == id).toList();
-    for (final s in toDelete) { await s.delete(); }
+    // Cascade: remove the subject's sessions, chapter plans, and todos.
+    for (final s in _sessionBox.values.where((s) => s.subjectId == id).toList()) {
+      await s.delete();
+    }
+    for (final p
+        in _chapterPlanBox.values.where((p) => p.subjectId == id).toList()) {
+      await p.delete();
+    }
+    for (final t in _todoBox.values.where((t) => t.subjectId == id).toList()) {
+      await t.delete();
+    }
     notifyListeners();
   }
 
@@ -209,7 +225,8 @@ class AppProvider extends ChangeNotifier {
   List<StudySession> sessionsForDay(DateTime day) {
     final d = day.dateOnly;
     return _sessionBox.values
-        .where((s) => s.date.dateOnly.isSameDay(d))
+        .where((s) =>
+            s.date.dateOnly.isSameDay(d) && subjectById(s.subjectId) != null)
         .toList()
       ..sort((a, b) => a.startHour != b.startHour
           ? a.startHour.compareTo(b.startHour)
@@ -220,7 +237,10 @@ class AppProvider extends ChangeNotifier {
     final start = weekStart.dateOnly;
     final end = start.add(const Duration(days: 6));
     return _sessionBox.values
-        .where((s) => !s.date.dateOnly.isBefore(start) && !s.date.dateOnly.isAfter(end))
+        .where((s) =>
+            !s.date.dateOnly.isBefore(start) &&
+            !s.date.dateOnly.isAfter(end) &&
+            subjectById(s.subjectId) != null)
         .toList();
   }
 
