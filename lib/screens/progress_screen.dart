@@ -5,7 +5,7 @@ import '../providers/app_provider.dart';
 import '../utils/date_utils.dart';
 import '../widgets/account_button.dart';
 
-const _wdShort = ['一', '二', '三', '四', '五', '六', '日'];
+const _blue = Color(0xFF1565C0);
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -15,16 +15,48 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
+  bool _custom = false;
   DateTime _weekStart = DateTime.now().weekStart;
+  DateTime _customStart = DateTime.now().weekStart;
+  DateTime _customEnd = DateTime.now().weekStart.add(const Duration(days: 6));
+  String _customTitle = '';
+
+  (DateTime, DateTime) get _range => _custom
+      ? (_customStart.dateOnly, _customEnd.dateOnly)
+      : (_weekStart.dateOnly, _weekStart.add(const Duration(days: 6)).dateOnly);
+
+  bool _inRange(DateTime d) {
+    final (s, e) = _range;
+    final x = d.dateOnly;
+    return !x.isBefore(s) && !x.isAfter(e);
+  }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
-    final totalMin = provider.totalMinutesThisWeek(_weekStart);
-    final perSubject = provider.weeklyMinutesPerSubject(_weekStart);
-    final subjects = provider.subjects;
-    final chapterPlans =
-        provider.chapterPlans.where((p) => !p.isExpired).toList();
+    final (rStart, rEnd) = _range;
+    final days = rEnd.difference(rStart).inDays + 1;
+
+    // Completed sessions in the selected range (with an existing subject).
+    final completed = provider.sessions
+        .where((s) =>
+            s.isCompleted &&
+            provider.subjectById(s.subjectId) != null &&
+            _inRange(s.date))
+        .toList();
+    final totalMin = completed.fold(0, (a, s) => a + s.durationMinutes);
+    final perSubject = <String, int>{};
+    for (final s in completed) {
+      perSubject[s.subjectId] =
+          (perSubject[s.subjectId] ?? 0) + s.durationMinutes;
+    }
+
+    // Chapter plans whose period overlaps the selected range.
+    final plans = provider.chapterPlans.where((p) {
+      final ps = p.startDate.dateOnly;
+      final pe = p.endDate.dateOnly;
+      return !pe.isBefore(rStart) && !ps.isAfter(rEnd);
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -33,18 +65,52 @@ class _ProgressScreenState extends State<ProgressScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.chevron_left),
-            onPressed: () => setState(() =>
-                _weekStart = _weekStart.subtract(const Duration(days: 7))),
+            onPressed: _custom
+                ? null
+                : () => setState(() =>
+                    _weekStart = _weekStart.subtract(const Duration(days: 7))),
           ),
-          TextButton(
-            onPressed: () =>
-                setState(() => _weekStart = DateTime.now().weekStart),
-            child: const Text('本週'),
+          PopupMenuButton<String>(
+            tooltip: '選擇範圍',
+            onSelected: (v) {
+              if (v == 'week') {
+                setState(() {
+                  _custom = false;
+                  _weekStart = DateTime.now().weekStart;
+                });
+              } else if (v == 'custom') {
+                _pickCustom();
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'week', child: Text('本週')),
+              PopupMenuItem(value: 'custom', child: Text('自訂範圍…')),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      _custom
+                          ? (_customTitle.isNotEmpty ? _customTitle : '自訂')
+                          : '本週',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_down),
+                ],
+              ),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
-            onPressed: () => setState(() =>
-                _weekStart = _weekStart.add(const Duration(days: 7))),
+            onPressed: _custom
+                ? null
+                : () => setState(() =>
+                    _weekStart = _weekStart.add(const Duration(days: 7))),
           ),
           const AccountButton(),
           PopupMenuButton<String>(
@@ -70,21 +136,55 @@ class _ProgressScreenState extends State<ProgressScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _WeekSummaryCard(totalMin: totalMin, weekStart: _weekStart),
+          // ── Summary card ────────────────────────────────────────────────
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_custom && _customTitle.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(_customTitle,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15)),
+                    ),
+                  Text(
+                    '${rStart.month}/${rStart.day} – ${rEnd.month}/${rEnd.day}',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    formatDuration(totalMin),
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(
+                            fontWeight: FontWeight.bold, color: _blue),
+                  ),
+                  const Text('此範圍完成讀書時數'),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
+
           if (perSubject.isNotEmpty) ...[
-            _PieChartCard(perSubject: perSubject, subjects: subjects),
+            _PieChartCard(perSubject: perSubject, subjects: provider.subjects),
             const SizedBox(height: 16),
           ],
 
-          // ── Time goal progress ──────────────────────────────────────────
+          // ── Per-subject time completion ─────────────────────────────────
           const Text('各科目時間完成度',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
-          ...subjects.map((s) {
-            final progress =
-                provider.subjectGoalProgress(s.id, _weekStart);
+          ...provider.subjects.map((s) {
             final done = perSubject[s.id] ?? 0;
+            // Goal is weekly; scale it to the range length.
+            final goal = (s.weeklyGoalMinutes * days / 7).round();
+            final progress =
+                goal > 0 ? (done / goal).clamp(0.0, 1.0) : 0.0;
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Column(
@@ -108,9 +208,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${formatDuration(done)} / ${formatDuration(s.weeklyGoalMinutes)}',
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.grey),
+                        '${formatDuration(done)} / ${formatDuration(goal)}',
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -120,10 +220,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 8,
-                      backgroundColor:
-                          Color(s.colorValue).withAlpha(40),
-                      valueColor: AlwaysStoppedAnimation(
-                          Color(s.colorValue)),
+                      backgroundColor: Color(s.colorValue).withAlpha(40),
+                      valueColor:
+                          AlwaysStoppedAnimation(Color(s.colorValue)),
                     ),
                   ),
                 ],
@@ -131,33 +230,31 @@ class _ProgressScreenState extends State<ProgressScreen> {
             );
           }),
 
-          // ── Chapter progress (stats only) ───────────────────────────────
-          if (chapterPlans.isNotEmpty) ...[
+          // ── Chapter completion (range-scoped) ───────────────────────────
+          if (plans.isNotEmpty) ...[
             const Divider(height: 32),
             const Text('章節完成度',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 4),
-            Text('在「科目」頁可設定或修改章節計畫',
-                style: TextStyle(
-                    fontSize: 12, color: Colors.grey.shade500)),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
-            ...chapterPlans.map((plan) {
+            ...plans.map((plan) {
               final subject = provider.subjectById(plan.subjectId);
               if (subject == null) return const SizedBox.shrink();
-              final completed =
-                  provider.weeklyChaptersCompleted(plan, _weekStart);
-              final total = plan.totalCount;
-              final progress =
-                  total > 0 ? (completed / total).clamp(0.0, 1.0) : 0.0;
-              final color = Color(subject.colorValue);
 
-              // Study days in this week
-              final studyDates = <DateTime>[];
-              for (int i = 0; i < 7; i++) {
-                final d = _weekStart.add(Duration(days: i));
-                if (plan.activeOn(d)) studyDates.add(d);
+              // Study dates of this plan that fall inside the selected range.
+              final studyDates =
+                  plan.allStudyDates.where(_inRange).toList();
+              if (studyDates.isEmpty) return const SizedBox.shrink();
+
+              int assigned = 0;
+              int done = 0;
+              for (final d in studyDates) {
+                final c = plan.chaptersForDate(d);
+                assigned += c;
+                if (plan.isCompletedOn(d)) done += c;
               }
+              final progress =
+                  assigned > 0 ? (done / assigned).clamp(0.0, 1.0) : 0.0;
+              final color = Color(subject.colorValue);
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
@@ -166,32 +263,23 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                            backgroundColor: color, radius: 7),
+                        CircleAvatar(backgroundColor: color, radius: 7),
                         const SizedBox(width: 8),
-                        Text(subject.name,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600)),
-                        const Spacer(),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              plan.fullRangeLabel,
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade500),
-                            ),
-                            Text(
-                              '$completed / $total${plan.unitLabel}',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  color: completed >= total
-                                      ? Colors.green.shade700
-                                      : Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500),
-                            ),
-                          ],
+                        Expanded(
+                          child: Text(
+                              '${plan.versionPrefix}${subject.name}',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                        Text(
+                          '$done / $assigned${plan.unitLabel}',
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: done >= assigned
+                                  ? Colors.green.shade700
+                                  : Colors.grey.shade600,
+                              fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
@@ -202,8 +290,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         value: progress,
                         minHeight: 7,
                         backgroundColor: color.withAlpha(40),
-                        valueColor:
-                            AlwaysStoppedAnimation(color),
+                        valueColor: AlwaysStoppedAnimation(color),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -211,28 +298,23 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       spacing: 6,
                       runSpacing: 6,
                       children: studyDates.map((day) {
-                        final done = plan.isCompletedOn(day);
+                        final isDone = plan.isCompletedOn(day);
                         return Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 5),
                           decoration: BoxDecoration(
-                            color: done
-                                ? color
-                                : color.withAlpha(20),
-                            borderRadius:
-                                BorderRadius.circular(8),
+                            color: isDone ? color : color.withAlpha(20),
+                            borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                                color: done
+                                color: isDone
                                     ? color
                                     : color.withAlpha(70)),
                           ),
                           child: Text(
-                            '週${_wdShort[day.weekday - 1]} ${plan.rangeLabelForDate(day)}${done ? ' ✓' : ''}',
+                            '${day.month}/${day.day} ${plan.rangeLabelForDate(day)}${isDone ? ' ✓' : ''}',
                             style: TextStyle(
                                 fontSize: 12,
-                                color: done
-                                    ? Colors.white
-                                    : color,
+                                color: isDone ? Colors.white : color,
                                 fontWeight: FontWeight.w600),
                           ),
                         );
@@ -248,6 +330,92 @@ class _ProgressScreenState extends State<ProgressScreen> {
         ],
       ),
     );
+  }
+
+  // ── Custom range picker ─────────────────────────────────────────────────
+
+  Future<void> _pickCustom() async {
+    DateTime start = _custom ? _customStart : _weekStart;
+    DateTime end =
+        _custom ? _customEnd : _weekStart.add(const Duration(days: 6));
+    final titleCtrl = TextEditingController(text: _customTitle);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('自訂範圍'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(
+                    labelText: '標題（選填）', hintText: '例如：期中考複習'),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final d = await showDatePicker(
+                          context: ctx,
+                          initialDate: start,
+                          firstDate: DateTime(2025),
+                          lastDate: DateTime(2028),
+                        );
+                        if (d != null) {
+                          setDialog(() {
+                            start = d;
+                            if (end.isBefore(start)) end = start;
+                          });
+                        }
+                      },
+                      child: Text(
+                          '起 ${start.year}/${start.month}/${start.day}'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final d = await showDatePicker(
+                          context: ctx,
+                          initialDate: end,
+                          firstDate: start,
+                          lastDate: DateTime(2028),
+                        );
+                        if (d != null) setDialog(() => end = d);
+                      },
+                      child:
+                          Text('止 ${end.year}/${end.month}/${end.day}'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('確定')),
+          ],
+        ),
+      ),
+    );
+
+    if (ok == true) {
+      setState(() {
+        _custom = true;
+        _customStart = start;
+        _customEnd = end;
+        _customTitle = titleCtrl.text.trim();
+      });
+    }
   }
 
   Future<void> _resetProgress(BuildContext context) async {
@@ -275,43 +443,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 }
 
-// ── Week summary card ─────────────────────────────────────────────────────────
-
-class _WeekSummaryCard extends StatelessWidget {
-  final int totalMin;
-  final DateTime weekStart;
-  const _WeekSummaryCard(
-      {required this.totalMin, required this.weekStart});
-
-  @override
-  Widget build(BuildContext context) {
-    final end = weekStart.add(const Duration(days: 6));
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${weekStart.month}/${weekStart.day} – ${end.month}/${end.day}',
-              style: const TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              formatDuration(totalMin),
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-            ),
-            const Text('本週完成讀書時數'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ── Pie chart card ────────────────────────────────────────────────────────────
 
 class _PieChartCard extends StatelessWidget {
@@ -326,8 +457,6 @@ class _PieChartCard extends StatelessWidget {
     if (total == 0) return const SizedBox.shrink();
 
     final sections = perSubject.entries.map((entry) {
-      // Null-safe lookup: firstWhere(orElse: () => null) would throw on a
-      // typed List<Subject> when a completed session's subject was deleted.
       dynamic subject;
       for (final s in subjects) {
         if (s.id == entry.key) {
