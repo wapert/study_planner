@@ -84,8 +84,12 @@ class SubjectsScreen extends StatelessWidget {
               return [
                 _SubjectTile(
                   subject: s,
-                  onEdit: () => _showSubjectDialog(context, subject: s),
+                  onColorEdit: () => _showColorDialog(context, s),
                   onDelete: () => _confirmDelete(context, s),
+                ),
+                _WeeklyGoalRow(
+                  subject: s,
+                  onTap: () => _showGoalDialog(context, s),
                 ),
                 _ChapterPlanRow(
                   subject: s,
@@ -228,6 +232,132 @@ class SubjectsScreen extends StatelessWidget {
             child: const Text('刪除'),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Color-only editor ─────────────────────────────────────────────────────
+
+  void _showColorDialog(BuildContext context, Subject subject) {
+    int selected = subject.colorValue;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text('${subject.name}  顏色'),
+          content: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _palette
+                .map((c) => GestureDetector(
+                      onTap: () => setState(() => selected = c),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Color(c),
+                          shape: BoxShape.circle,
+                          border: selected == c
+                              ? Border.all(width: 3, color: Colors.white)
+                              : null,
+                          boxShadow: selected == c
+                              ? [
+                                  BoxShadow(
+                                      color: Color(c).withAlpha(120),
+                                      blurRadius: 6)
+                                ]
+                              : null,
+                        ),
+                      ),
+                    ))
+                .toList(),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('取消')),
+            FilledButton(
+              onPressed: () {
+                subject.colorValue = selected;
+                context.read<AppProvider>().updateSubject(subject);
+                Navigator.pop(ctx);
+              },
+              child: const Text('儲存'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Weekly time-goal editor (with delete) ──────────────────────────────────
+
+  void _showGoalDialog(BuildContext context, Subject subject) {
+    int hours = subject.weeklyGoalMinutes ~/ 60;
+    int minutes = subject.weeklyGoalMinutes % 60;
+    final hadGoal = subject.weeklyGoalMinutes > 0;
+
+    void save(int mins) {
+      subject.weeklyGoalMinutes = mins;
+      context.read<AppProvider>().updateSubject(subject);
+      Navigator.pop(context);
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text('${subject.name}  每週目標'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: hours,
+                      decoration: const InputDecoration(labelText: '小時'),
+                      items: List.generate(
+                          13,
+                          (i) => DropdownMenuItem(
+                              value: i, child: Text('$i'))),
+                      onChanged: (v) => setState(() => hours = v!),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: minutes,
+                      decoration: const InputDecoration(labelText: '分鐘'),
+                      items: [0, 15, 30, 45]
+                          .map((m) => DropdownMenuItem(
+                              value: m, child: Text('$m')))
+                          .toList(),
+                      onChanged: (v) => setState(() => minutes = v!),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            if (hadGoal)
+              TextButton.icon(
+                icon: const Icon(Icons.delete_outline,
+                    color: Colors.red, size: 18),
+                label: const Text('刪除目標',
+                    style: TextStyle(color: Colors.red)),
+                onPressed: () => save(0),
+              ),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('取消')),
+            FilledButton(
+              onPressed: () => save(hours * 60 + minutes),
+              child: const Text('儲存'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -523,31 +653,86 @@ class _ChapterPlanRow extends StatelessWidget {
 
 class _SubjectTile extends StatelessWidget {
   final Subject subject;
-  final VoidCallback onEdit;
+  final VoidCallback onColorEdit;
   final VoidCallback onDelete;
 
   const _SubjectTile({
     required this.subject,
-    required this.onEdit,
+    required this.onColorEdit,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      contentPadding: const EdgeInsets.only(left: 16, right: 8),
       leading: CircleAvatar(
           backgroundColor: Color(subject.colorValue), radius: 14),
-      title: Text(subject.name),
-      subtitle: Text(
-          '每週目標：${subject.weeklyGoalMinutes ~/ 60} 小時 ${subject.weeklyGoalMinutes % 60} 分鐘'),
+      title: Text(subject.name,
+          style: const TextStyle(fontWeight: FontWeight.w500)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-              icon: const Icon(Icons.edit_outlined), onPressed: onEdit),
+              icon: const Icon(Icons.palette_outlined),
+              tooltip: '編輯顏色',
+              onPressed: onColorEdit),
           IconButton(
-              icon: const Icon(Icons.delete_outline), onPressed: onDelete),
+              icon: const Icon(Icons.delete_outline),
+              tooltip: '刪除科目',
+              onPressed: onDelete),
         ],
+      ),
+    );
+  }
+}
+
+// ── Weekly time-goal row (editable, deletable) ────────────────────────────────
+
+class _WeeklyGoalRow extends StatelessWidget {
+  final Subject subject;
+  final VoidCallback onTap;
+
+  const _WeeklyGoalRow({required this.subject, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(subject.colorValue);
+    final mins = subject.weeklyGoalMinutes;
+    final hasGoal = mins > 0;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(56, 0, 16, 8),
+        child: hasGoal
+            ? Row(
+                children: [
+                  Icon(Icons.schedule, size: 14, color: color.withAlpha(180)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '每週目標：${mins ~/ 60} 小時 ${mins % 60} 分鐘',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: color,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.edit_outlined,
+                      size: 13, color: Colors.grey.shade400),
+                ],
+              )
+            : Row(
+                children: [
+                  Icon(Icons.schedule, size: 14, color: Colors.grey.shade400),
+                  const SizedBox(width: 6),
+                  Text('+ 設定每週目標',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.w500)),
+                ],
+              ),
       ),
     );
   }
