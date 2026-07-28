@@ -32,11 +32,17 @@ class _TodayScreenState extends State<TodayScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
-    final subjects = provider.subjects;
     final isToday = _selected.isSameDay(DateTime.now());
     final dateLabel =
         '${_selected.month}/${_selected.day}（${_weekdayLabels[_selected.weekday - 1]}）';
-    final generalTodos = provider.generalTodosForDay(_selected);
+
+    final todos = provider.todosForDay(_selected);
+    final sessions = provider.sessionsForDay(_selected);
+    final chapterItems = provider.chapterPlans
+        .where((p) => p.activeOn(_selected))
+        .map((p) => (p, provider.subjectById(p.subjectId)))
+        .where((pair) => pair.$2 != null)
+        .toList();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -58,12 +64,6 @@ class _TodayScreenState extends State<TodayScreen> {
                     ),
                   ),
                   const Spacer(),
-                  // Add general (no-subject) todo
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline),
-                    tooltip: '新增一般待辦',
-                    onPressed: () => _showTodoSheet(context, null),
-                  ),
                   const AccountButton(),
                 ],
               ),
@@ -138,42 +138,75 @@ class _TodayScreenState extends State<TodayScreen> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 32),
                 children: [
-                  // General todos (no subject)
-                  if (generalTodos.isNotEmpty) ...[
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(20, 14, 20, 6),
-                      child: Text('一般待辦',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.8)),
+                  // ── 待辦事項 ──────────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 6),
+                    child: Row(
+                      children: [
+                        const Text('待辦事項',
+                            style: TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        _IconAction(
+                          icon: Icons.add_circle_outline,
+                          tooltip: '新增待辦',
+                          onTap: () => _showTodoSheet(context),
+                        ),
+                      ],
                     ),
-                    ...generalTodos.map((t) => _TodoTile(
-                          todo: t,
-                          date: _selected,
-                          color: Colors.grey.shade700,
-                        )),
-                    const Divider(
-                        height: 1,
-                        thickness: 0.6,
-                        indent: 20,
-                        endIndent: 20),
-                  ],
-
-                  // Subject rows
-                  if (subjects.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 40),
-                      child: Center(child: Text('請先到「科目」頁新增科目')),
+                  ),
+                  if (todos.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                      child: Text('今天沒有待辦事項',
+                          style: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 13)),
                     )
                   else
-                    ...subjects.map((s) => _SubjectSection(
-                          subject: s,
+                    ...todos.map((t) => _TodoTile(
+                          todo: t,
                           date: _selected,
-                          onAddTodo: () => _showTodoSheet(context, s),
-                          onAddSession: () =>
-                              _showSessionSheet(context, s),
+                          subject: t.subjectId == null
+                              ? null
+                              : provider.subjectById(t.subjectId!),
+                        )),
+
+                  const Divider(
+                      height: 24, thickness: 0.6, indent: 20, endIndent: 20),
+
+                  // ── 讀書時段 ──────────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 12, 6),
+                    child: Row(
+                      children: [
+                        const Text('讀書時段',
+                            style: TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        _IconAction(
+                          icon: Icons.timer_outlined,
+                          tooltip: '新增讀書時段',
+                          onTap: () => _showSessionSheet(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ...chapterItems.map((pair) => _ChapterDayTile(
+                        plan: pair.$1,
+                        subject: pair.$2!,
+                        date: _selected,
+                      )),
+                  if (sessions.isEmpty && chapterItems.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                      child: Text('今天沒有讀書時段',
+                          style: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 13)),
+                    )
+                  else
+                    ...sessions.map((s) => _SessionTile(
+                          session: s,
+                          subject: provider.subjectById(s.subjectId),
                         )),
                 ],
               ),
@@ -186,8 +219,11 @@ class _TodayScreenState extends State<TodayScreen> {
 
   // ── Bottom sheet: add To-Do ───────────────────────────────────────────────
 
-  void _showTodoSheet(BuildContext context, Subject? subject) {
+  void _showTodoSheet(BuildContext context) {
+    final provider = context.read<AppProvider>();
+    final subjects = provider.subjects;
     final titleCtrl = TextEditingController();
+    String? selectedSubjectId;
     // Default: current weekday selected
     final selectedWeekdays = <int>{_selected.weekday};
 
@@ -197,166 +233,196 @@ class _TodayScreenState extends State<TodayScreen> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  if (subject != null) ...[
-                    Container(
-                      width: 4,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: Color(subject.colorValue),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+        builder: (ctx, setModal) {
+          final selectedColor = selectedSubjectId == null
+              ? Colors.black
+              : Color(subjects
+                  .firstWhere((s) => s.id == selectedSubjectId)
+                  .colorValue);
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('新增待辦事項',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+
+                // Title field
+                TextField(
+                  controller: titleCtrl,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: '待辦事項名稱',
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
                     ),
-                    const SizedBox(width: 10),
-                  ],
-                  Text(
-                    subject != null ? '${subject.name}  待辦事項' : '新增待辦事項',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Title field
-              TextField(
-                controller: titleCtrl,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: '待辦事項名稱',
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Weekday chips
-              const Text('重複星期',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Row(
-                children: List.generate(7, (i) {
-                  final wd = i + 1; // 1=Mon
-                  final active = selectedWeekdays.contains(wd);
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setModal(() {
-                        if (active) {
-                          selectedWeekdays.remove(wd);
-                        } else {
-                          selectedWeekdays.add(wd);
-                        }
-                      }),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: active
-                              ? (subject != null
-                                  ? Color(subject.colorValue)
-                                  : Colors.black)
-                              : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _weekdayShort[i],
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: active ? Colors.white : Colors.black54,
+                // Subject picker
+                if (subjects.isNotEmpty) ...[
+                  const Text('科目（選填）',
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('無'),
+                        selected: selectedSubjectId == null,
+                        onSelected: (_) =>
+                            setModal(() => selectedSubjectId = null),
+                      ),
+                      ...subjects.map((s) => ChoiceChip(
+                            avatar: CircleAvatar(
+                                backgroundColor: Color(s.colorValue),
+                                radius: 6),
+                            label: Text(s.name),
+                            selected: selectedSubjectId == s.id,
+                            onSelected: (_) =>
+                                setModal(() => selectedSubjectId = s.id),
+                          )),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Weekday chips
+                const Text('重複星期',
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Row(
+                  children: List.generate(7, (i) {
+                    final wd = i + 1; // 1=Mon
+                    final active = selectedWeekdays.contains(wd);
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => setModal(() {
+                          if (active) {
+                            selectedWeekdays.remove(wd);
+                          } else {
+                            selectedWeekdays.add(wd);
+                          }
+                        }),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? selectedColor
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _weekdayShort[i],
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    active ? Colors.white : Colors.black54,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () => setModal(() {
-                  if (selectedWeekdays.length == 7) {
-                    selectedWeekdays.clear();
-                  } else {
-                    selectedWeekdays.addAll([1, 2, 3, 4, 5, 6, 7]);
-                  }
-                }),
-                child: Row(
-                  children: [
-                    Icon(
-                      selectedWeekdays.length == 7
-                          ? Icons.check_box
-                          : Icons.check_box_outline_blank,
-                      size: 18,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(width: 6),
-                    const Text('每天',
-                        style: TextStyle(fontSize: 13, color: Colors.grey)),
-                  ],
+                    );
+                  }),
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              // Confirm
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor:
-                        subject != null ? Color(subject.colorValue) : Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => setModal(() {
+                    if (selectedWeekdays.length == 7) {
+                      selectedWeekdays.clear();
+                    } else {
+                      selectedWeekdays.addAll([1, 2, 3, 4, 5, 6, 7]);
+                    }
+                  }),
+                  child: Row(
+                    children: [
+                      Icon(
+                        selectedWeekdays.length == 7
+                            ? Icons.check_box
+                            : Icons.check_box_outline_blank,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(width: 6),
+                      const Text('每天',
+                          style: TextStyle(fontSize: 13, color: Colors.grey)),
+                    ],
                   ),
-                  onPressed: () {
-                    final title = titleCtrl.text.trim();
-                    if (title.isEmpty) return;
-                    context.read<AppProvider>().addTodo(TodoItem(
-                          id: _uuid.v4(),
-                          title: title,
-                          subjectId: subject?.id,
-                          weekdays: selectedWeekdays.toList()..sort(),
-                        ));
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('新增', style: TextStyle(fontSize: 16)),
                 ),
-              ),
-            ],
-          ),
-        ),
+                const SizedBox(height: 20),
+
+                // Confirm
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: selectedColor,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      final title = titleCtrl.text.trim();
+                      if (title.isEmpty) return;
+                      context.read<AppProvider>().addTodo(TodoItem(
+                            id: _uuid.v4(),
+                            title: title,
+                            subjectId: selectedSubjectId,
+                            weekdays: selectedWeekdays.toList()..sort(),
+                          ));
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('新增', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
   // ── Bottom sheet: add Study Session ──────────────────────────────────────
 
-  void _showSessionSheet(BuildContext context, Subject subject) {
+  void _showSessionSheet(BuildContext context) {
+    final provider = context.read<AppProvider>();
+    final subjects = provider.subjects;
+    if (subjects.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('請先到「科目」頁新增科目')),
+      );
+      return;
+    }
+
+    String selectedSubjectId = subjects.first.id;
     int startHour = 8, startMinute = 0, duration = 60;
     final noteCtrl = TextEditingController();
 
@@ -366,202 +432,132 @@ class _TodayScreenState extends State<TodayScreen> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding: EdgeInsets.only(
-            left: 24, right: 24, top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Container(
-                  width: 4, height: 18,
-                  decoration: BoxDecoration(
-                    color: Color(subject.colorValue),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+        builder: (ctx, setModal) {
+          final color = Color(subjects
+              .firstWhere((s) => s.id == selectedSubjectId)
+              .colorValue);
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 24, right: 24, top: 24,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('新增讀書時段',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+
+                const Text('科目',
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: subjects
+                      .map((s) => ChoiceChip(
+                            avatar: CircleAvatar(
+                                backgroundColor: Color(s.colorValue),
+                                radius: 6),
+                            label: Text(s.name),
+                            selected: selectedSubjectId == s.id,
+                            onSelected: (_) =>
+                                setModal(() => selectedSubjectId = s.id),
+                          ))
+                      .toList(),
                 ),
-                const SizedBox(width: 10),
-                Text(subject.name,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 8),
-                Text('讀書時段',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
-              ]),
-              const SizedBox(height: 20),
-              _SheetRow(
-                label: '開始時間',
-                value: formatHHMM(startHour, startMinute),
-                onTap: () async {
-                  final t = await showTimePicker(
-                    context: ctx,
-                    initialTime: TimeOfDay(hour: startHour, minute: startMinute),
-                  );
-                  if (t != null) {
-                    setModal(() {
-                      startHour = t.hour;
-                      startMinute = t.minute;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              _SheetRow(
-                label: '時長',
-                value: formatDuration(duration),
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                  _StepButton(
-                    icon: Icons.remove,
-                    onTap: duration > 15
-                        ? () => setModal(() => duration -= 15)
-                        : null,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(formatDuration(duration),
-                        style: const TextStyle(fontWeight: FontWeight.w500)),
-                  ),
-                  _StepButton(
-                    icon: Icons.add,
-                    onTap: () => setModal(() => duration += 15),
-                  ),
-                ]),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: noteCtrl,
-                decoration: InputDecoration(
-                  hintText: '備註（選填）',
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Color(subject.colorValue),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    context.read<AppProvider>().addSession(StudySession(
-                          id: _uuid.v4(),
-                          subjectId: subject.id,
-                          date: _selected,
-                          startHour: startHour,
-                          startMinute: startMinute,
-                          durationMinutes: duration,
-                          note: noteCtrl.text.trim(),
-                        ));
-                    Navigator.pop(ctx);
+                const SizedBox(height: 16),
+
+                _SheetRow(
+                  label: '開始時間',
+                  value: formatHHMM(startHour, startMinute),
+                  onTap: () async {
+                    final t = await showTimePicker(
+                      context: ctx,
+                      initialTime:
+                          TimeOfDay(hour: startHour, minute: startMinute),
+                    );
+                    if (t != null) {
+                      setModal(() {
+                        startHour = t.hour;
+                        startMinute = t.minute;
+                      });
+                    }
                   },
-                  child: const Text('新增', style: TextStyle(fontSize: 16)),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Subject section with todos + sessions ─────────────────────────────────────
-
-class _SubjectSection extends StatelessWidget {
-  final Subject subject;
-  final DateTime date;
-  final VoidCallback onAddTodo;
-  final VoidCallback onAddSession;
-
-  const _SubjectSection({
-    required this.subject,
-    required this.date,
-    required this.onAddTodo,
-    required this.onAddSession,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<AppProvider>();
-    final todos = provider.todosForSubjectDay(subject.id, date);
-    final sessions = provider.sessionsForDay(date)
-        .where((s) => s.subjectId == subject.id)
-        .toList();
-    final chapterPlan = provider.chapterPlanForSubject(subject.id);
-    final isChapterDay =
-        chapterPlan != null && chapterPlan.activeOn(date);
-    final color = Color(subject.colorValue);
-    final hasItems =
-        todos.isNotEmpty || sessions.isNotEmpty || isChapterDay;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Subject header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 16, 6),
-          child: Row(
-            children: [
-              Container(
-                width: 4, height: 20,
-                decoration: BoxDecoration(
-                  color: color, borderRadius: BorderRadius.circular(2)),
-              ),
-              const SizedBox(width: 12),
-              Text(subject.name,
-                  style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w500)),
-              const Spacer(),
-              if (hasItems)
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Text(
-                    '${todos.where((t) => t.isCompletedOn(date)).length + sessions.where((s) => s.isCompleted).length + (isChapterDay && chapterPlan.isCompletedOn(date) ? 1 : 0)}/${todos.length + sessions.length + (isChapterDay ? 1 : 0)}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                const SizedBox(height: 12),
+                _SheetRow(
+                  label: '時長',
+                  value: formatDuration(duration),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    _StepButton(
+                      icon: Icons.remove,
+                      onTap: duration > 15
+                          ? () => setModal(() => duration -= 15)
+                          : null,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(formatDuration(duration),
+                          style: const TextStyle(fontWeight: FontWeight.w500)),
+                    ),
+                    _StepButton(
+                      icon: Icons.add,
+                      onTap: () => setModal(() => duration += 15),
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: InputDecoration(
+                    hintText: '備註（選填）',
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                   ),
                 ),
-              // Add todo
-              _IconAction(
-                icon: Icons.check_box_outline_blank_rounded,
-                tooltip: '新增待辦',
-                onTap: onAddTodo,
-              ),
-              const SizedBox(width: 4),
-              // Add session
-              _IconAction(
-                icon: Icons.timer_outlined,
-                tooltip: '新增讀書時段',
-                onTap: onAddSession,
-              ),
-            ],
-          ),
-        ),
-
-        // Chapter tile (shown when today is a study day)
-        if (isChapterDay)
-          _ChapterDayTile(plan: chapterPlan, date: date, color: color),
-
-        // Todo items
-        ...todos.map((t) => _TodoTile(todo: t, date: date, color: color)),
-
-        // Study sessions
-        ...sessions.map((s) => _SessionTile(session: s, color: color)),
-
-        const Divider(height: 1, thickness: 0.6, indent: 20, endIndent: 20),
-      ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: color,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      context.read<AppProvider>().addSession(StudySession(
+                            id: _uuid.v4(),
+                            subjectId: selectedSubjectId,
+                            date: _selected,
+                            startHour: startHour,
+                            startMinute: startMinute,
+                            durationMinutes: duration,
+                            note: noteCtrl.text.trim(),
+                          ));
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('新增', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -570,24 +566,25 @@ class _SubjectSection extends StatelessWidget {
 
 class _ChapterDayTile extends StatelessWidget {
   final ChapterPlan plan;
+  final Subject subject;
   final DateTime date;
-  final Color color;
 
   const _ChapterDayTile({
     required this.plan,
+    required this.subject,
     required this.date,
-    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final color = Color(subject.colorValue);
     final done = plan.isCompletedOn(date);
     final rangeLabel = '${plan.versionPrefix}${plan.rangeLabelForDate(date)}';
 
     return InkWell(
       onTap: () => context.read<AppProvider>().toggleChapterDay(plan, date),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(36, 8, 20, 8),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
         child: Row(
           children: [
             AnimatedContainer(
@@ -607,16 +604,23 @@ class _ChapterDayTile extends StatelessWidget {
                   : null,
             ),
             const SizedBox(width: 12),
+            Container(
+                width: 4, height: 16,
+                decoration: BoxDecoration(
+                    color: color, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(width: 8),
             Icon(Icons.menu_book_outlined,
                 size: 14,
                 color: done ? Colors.grey.shade400 : color),
             const SizedBox(width: 6),
-            Text(
-              rangeLabel,
-              style: TextStyle(
-                fontSize: 15,
-                color: done ? Colors.grey.shade400 : Colors.black87,
-                decoration: done ? TextDecoration.lineThrough : null,
+            Expanded(
+              child: Text(
+                '${subject.name}  ·  $rangeLabel',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: done ? Colors.grey.shade400 : Colors.black87,
+                  decoration: done ? TextDecoration.lineThrough : null,
+                ),
               ),
             ),
           ],
@@ -631,17 +635,19 @@ class _ChapterDayTile extends StatelessWidget {
 class _TodoTile extends StatelessWidget {
   final TodoItem todo;
   final DateTime date;
-  final Color color;
+  final Subject? subject;
 
   const _TodoTile({
     required this.todo,
     required this.date,
-    required this.color,
+    required this.subject,
   });
 
   @override
   Widget build(BuildContext context) {
     final done = todo.isCompletedOn(date);
+    final color =
+        subject != null ? Color(subject!.colorValue) : Colors.grey.shade700;
 
     return Dismissible(
       key: Key('todo-${todo.id}'),
@@ -678,7 +684,7 @@ class _TodoTile extends StatelessWidget {
       child: InkWell(
         onTap: () => context.read<AppProvider>().toggleTodo(todo, date),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(36, 8, 20, 8),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
           child: Row(
             children: [
               // Custom checkbox
@@ -711,9 +717,30 @@ class _TodoTile extends StatelessWidget {
                             done ? TextDecoration.lineThrough : null,
                       ),
                     ),
-                    // Weekday badges
                     const SizedBox(height: 3),
-                    _WeekdayBadges(weekdays: todo.weekdays, color: color),
+                    Row(
+                      children: [
+                        if (subject != null) ...[
+                          Container(
+                            margin: const EdgeInsets.only(right: 5),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: color.withAlpha(30),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              subject!.name,
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: color,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                        _WeekdayBadges(weekdays: todo.weekdays, color: color),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -728,13 +755,16 @@ class _TodoTile extends StatelessWidget {
 // ── Study session tile ────────────────────────────────────────────────────────
 
 class _SessionTile extends StatelessWidget {
-  final dynamic session;
-  final Color color;
-  const _SessionTile({required this.session, required this.color});
+  final StudySession session;
+  final Subject? subject;
+  const _SessionTile({required this.session, required this.subject});
 
   @override
   Widget build(BuildContext context) {
-    final done = session.isCompleted as bool;
+    final done = session.isCompleted;
+    final color =
+        subject != null ? Color(subject!.colorValue) : Colors.grey;
+
     return Dismissible(
       key: Key('session-${session.id}'),
       direction: DismissDirection.endToStart,
@@ -745,11 +775,11 @@ class _SessionTile extends StatelessWidget {
         child: const Icon(Icons.delete_outline, color: Colors.red),
       ),
       onDismissed: (_) =>
-          context.read<AppProvider>().deleteSession(session.id as String),
+          context.read<AppProvider>().deleteSession(session.id),
       child: InkWell(
         onTap: () => context.read<AppProvider>().toggleSession(session),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(36, 8, 20, 8),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
           child: Row(
             children: [
               AnimatedContainer(
@@ -771,23 +801,34 @@ class _SessionTile extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
+                    if (subject != null) ...[
+                      Container(
+                          width: 4, height: 16,
+                          decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(2))),
+                      const SizedBox(width: 8),
+                    ],
                     const Icon(Icons.timer_outlined, size: 14,
                         color: Colors.grey),
                     const SizedBox(width: 4),
-                    Text(
-                      '${formatHHMM(session.startHour as int, session.startMinute as int)}  ${formatDuration(session.durationMinutes as int)}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: done ? Colors.grey.shade400 : Colors.black87,
-                        decoration:
-                            done ? TextDecoration.lineThrough : null,
+                    Flexible(
+                      child: Text(
+                        '${subject?.name ?? '已刪除科目'}  ${formatHHMM(session.startHour, session.startMinute)}  ${formatDuration(session.durationMinutes)}',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: done ? Colors.grey.shade400 : Colors.black87,
+                          decoration:
+                              done ? TextDecoration.lineThrough : null,
+                        ),
                       ),
                     ),
-                    if ((session.note as String).isNotEmpty) ...[
+                    if (session.note.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          session.note as String,
+                          session.note,
                           style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade500),

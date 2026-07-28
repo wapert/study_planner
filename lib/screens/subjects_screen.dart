@@ -60,8 +60,9 @@ class SubjectsScreen extends StatelessWidget {
           _ProfileCard(profile: profile),
 
           // ── Preset quick-apply bar ──────────────────────────────────────
-          if (profile == null ||
-              profile.schoolLevel == SchoolLevel.custom) ...[
+          // Shown for first-launch (no profile yet) or a 國中/高中 profile.
+          // Hidden entirely once the user has explicitly chosen 自訂 (custom).
+          if (profile == null) ...[
             _PresetBar(
               label: '國中預設科目',
               level: SchoolLevel.junior,
@@ -73,14 +74,15 @@ class SubjectsScreen extends StatelessWidget {
               level: SchoolLevel.senior,
               subjects: presetsFor(SchoolLevel.senior),
             ),
-          ] else
+            const Divider(height: 24, indent: 16, endIndent: 16),
+          ] else if (profile.schoolLevel != SchoolLevel.custom) ...[
             _PresetBar(
               label: '${profile.schoolLevel.label}預設科目',
               level: profile.schoolLevel,
               subjects: presetsFor(profile.schoolLevel),
             ),
-
-          const Divider(height: 24, indent: 16, endIndent: 16),
+            const Divider(height: 24, indent: 16, endIndent: 16),
+          ],
 
           // ── Subject list ────────────────────────────────────────────────
           if (subjects.isEmpty)
