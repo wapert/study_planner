@@ -47,6 +47,24 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 _weekStart = _weekStart.add(const Duration(days: 7))),
           ),
           const AccountButton(),
+          PopupMenuButton<String>(
+            tooltip: '更多',
+            onSelected: (v) {
+              if (v == 'reset') _resetProgress(context);
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'reset',
+                child: Row(
+                  children: [
+                    Icon(Icons.restart_alt, size: 20),
+                    SizedBox(width: 10),
+                    Text('重設進度'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: ListView(
@@ -227,6 +245,30 @@ class _ProgressScreenState extends State<ProgressScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _resetProgress(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重設進度'),
+        content: const Text(
+            '將清除所有讀書時段的完成狀態與章節完成紀錄，進度歸零。\n（科目、章節計畫與時段本身會保留）\n確定要重設嗎？'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('重設'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await context.read<AppProvider>().resetProgress();
+    }
   }
 }
 

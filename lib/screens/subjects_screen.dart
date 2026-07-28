@@ -40,6 +40,24 @@ class SubjectsScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const AccountScreen()),
             ),
           ),
+          PopupMenuButton<String>(
+            tooltip: '更多',
+            onSelected: (v) {
+              if (v == 'reset') _resetSubjects(context, profile);
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'reset',
+                child: Row(
+                  children: [
+                    Icon(Icons.restart_alt, size: 20),
+                    SizedBox(width: 10),
+                    Text('重設科目'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: ListView(
@@ -360,6 +378,54 @@ class SubjectsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ── Reset subjects to the preset template ──────────────────────────────────
+
+  Future<void> _resetSubjects(
+      BuildContext context, UserProfile? profile) async {
+    SchoolLevel? level = profile?.schoolLevel;
+    // No usable template level → let the user pick one.
+    if (level == null || level == SchoolLevel.custom) {
+      level = await showDialog<SchoolLevel>(
+        context: context,
+        builder: (ctx) => SimpleDialog(
+          title: const Text('選擇預設科目'),
+          children: [
+            SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, SchoolLevel.junior),
+                child: const Text('國中')),
+            SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, SchoolLevel.senior),
+                child: const Text('高中')),
+          ],
+        ),
+      );
+      if (level == null) return;
+    }
+    final lvl = level;
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重設科目'),
+        content: Text(
+            '將清除目前所有科目，改用【${lvl.label}】預設科目。\n（原本的章節計畫與讀書時段可能因科目改變而失效）\n確定要重設嗎？'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('重設'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await context.read<AppProvider>().applySubjectPreset(lvl);
+    }
   }
 }
 

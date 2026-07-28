@@ -346,4 +346,23 @@ class AppProvider extends ChangeNotifier {
     }
     return count;
   }
+
+  /// Reset all progress to zero: un-complete every study session and clear
+  /// every chapter plan's completion marks. Subjects, plans, and scheduled
+  /// sessions are kept — only the "done" state is cleared.
+  Future<void> resetProgress() async {
+    for (final s in _sessionBox.values) {
+      if (s.isCompleted) {
+        s.isCompleted = false;
+        await s.save();
+      }
+    }
+    for (final p in _chapterPlanBox.values) {
+      if (p.completedKeys.isNotEmpty) {
+        p.completedKeys.clear();
+        await p.save();
+      }
+    }
+    notifyListeners();
+  }
 }
