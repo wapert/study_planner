@@ -47,6 +47,6 @@ List<Subject> buildSubjects(SchoolLevel level, String Function() idGen) {
         id: idGen(),
         name: p.name,
         colorValue: p.colorValue,
-        weeklyGoalMinutes: 120,
+        weeklyGoalMinutes: 0,
       )).toList();
 }

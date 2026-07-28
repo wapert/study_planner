@@ -20,6 +20,6 @@ class Subject extends HiveObject {
     required this.id,
     required this.name,
     required this.colorValue,
-    this.weeklyGoalMinutes = 120,
+    this.weeklyGoalMinutes = 0,
   });
 }

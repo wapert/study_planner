@@ -40,7 +40,7 @@ Subject subjectFromMap(Map<String, dynamic> m) => Subject(
       id: m['id'] as String,
       name: m['name'] as String,
       colorValue: (m['colorValue'] as num).toInt(),
-      weeklyGoalMinutes: (m['weeklyGoalMinutes'] as num?)?.toInt() ?? 120,
+      weeklyGoalMinutes: (m['weeklyGoalMinutes'] as num?)?.toInt() ?? 0,
     );
 
 // ── StudySession ─────────────────────────────────────────────────────────────

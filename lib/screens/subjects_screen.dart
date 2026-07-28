@@ -126,7 +126,7 @@ class SubjectsScreen extends StatelessWidget {
   void _showSubjectDialog(BuildContext context, {Subject? subject}) {
     final nameCtrl = TextEditingController(text: subject?.name ?? '');
     int selectedColor = subject?.colorValue ?? _palette.first;
-    int goalHours = subject != null ? subject.weeklyGoalMinutes ~/ 60 : 2;
+    int goalHours = subject != null ? subject.weeklyGoalMinutes ~/ 60 : 0;
     int goalMinutes = subject != null ? subject.weeklyGoalMinutes % 60 : 0;
 
     showDialog(
