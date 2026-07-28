@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/sync_service.dart';
 import '../services/share_service.dart';
+import '../widgets/account_button.dart';
 import 'shared_plan_screen.dart';
 
 const _blue = Color(0xFF1565C0);
@@ -30,10 +31,16 @@ class AccountScreen extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 22,
                   backgroundColor: Colors.white24,
-                  child: Icon(Icons.person, color: Colors.white),
+                  child: Text(
+                    initialFor(auth.email),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(

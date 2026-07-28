@@ -100,10 +100,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
                             shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 8),
-                      Text(s.name,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w500)),
-                      const Spacer(),
+                      Expanded(
+                        child: Text(s.name,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w500)),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         '${formatDuration(done)} / ${formatDuration(s.weeklyGoalMinutes)}',
                         style: const TextStyle(
@@ -323,10 +326,15 @@ class _PieChartCard extends StatelessWidget {
     if (total == 0) return const SizedBox.shrink();
 
     final sections = perSubject.entries.map((entry) {
-      final subject = subjects.firstWhere(
-        (s) => s.id == entry.key,
-        orElse: () => null,
-      );
+      // Null-safe lookup: firstWhere(orElse: () => null) would throw on a
+      // typed List<Subject> when a completed session's subject was deleted.
+      dynamic subject;
+      for (final s in subjects) {
+        if (s.id == entry.key) {
+          subject = s;
+          break;
+        }
+      }
       if (subject == null) return null;
       final pct = entry.value / total * 100;
       return PieChartSectionData(

@@ -7,8 +7,8 @@ import '../models/chapter_plan.dart';
 import '../models/user_profile.dart';
 import '../data/subject_presets.dart';
 import '../widgets/chapter_plan_sheet.dart';
+import '../widgets/account_button.dart';
 import 'profile_setup_screen.dart';
-import 'account_screen.dart';
 
 const _uuid = Uuid();
 
@@ -32,14 +32,7 @@ class SubjectsScreen extends StatelessWidget {
         title: const Text('科目管理'),
         centerTitle: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle_outlined),
-            tooltip: '帳號與同步',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AccountScreen()),
-            ),
-          ),
+          const AccountButton(),
           PopupMenuButton<String>(
             tooltip: '更多',
             onSelected: (v) {
