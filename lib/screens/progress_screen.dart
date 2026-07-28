@@ -21,6 +21,24 @@ class _ProgressScreenState extends State<ProgressScreen> {
   DateTime _customEnd = DateTime.now().weekStart.add(const Duration(days: 6));
   String _customTitle = '';
 
+  @override
+  void initState() {
+    super.initState();
+    // Restore the last-selected range so it survives navigation, app
+    // restarts, and sign-out/sign-in (persisted locally on-device).
+    final provider = context.read<AppProvider>();
+    if (provider.progressUsesCustomRange) {
+      final start = provider.progressCustomStart;
+      final end = provider.progressCustomEnd;
+      if (start != null && end != null) {
+        _custom = true;
+        _customStart = start;
+        _customEnd = end;
+        _customTitle = provider.progressCustomTitle;
+      }
+    }
+  }
+
   (DateTime, DateTime) get _range => _custom
       ? (_customStart.dateOnly, _customEnd.dateOnly)
       : (_weekStart.dateOnly, _weekStart.add(const Duration(days: 6)).dateOnly);
@@ -78,6 +96,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   _custom = false;
                   _weekStart = DateTime.now().weekStart;
                 });
+                context.read<AppProvider>().saveProgressWeekMode();
               } else if (v == 'custom') {
                 _pickCustom();
               }
@@ -409,12 +428,16 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
 
     if (ok == true) {
+      final title = titleCtrl.text.trim();
       setState(() {
         _custom = true;
         _customStart = start;
         _customEnd = end;
-        _customTitle = titleCtrl.text.trim();
+        _customTitle = title;
       });
+      if (mounted) {
+        context.read<AppProvider>().saveProgressCustomRange(start, end, title);
+      }
     }
   }
 

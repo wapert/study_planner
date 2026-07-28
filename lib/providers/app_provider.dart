@@ -21,6 +21,7 @@ class AppProvider extends ChangeNotifier {
   late Box<UserProfile> _profileBox;
   late Box<ChapterPlan> _chapterPlanBox;
   late Box<bool> _seededBox;
+  late Box _prefsBox;
 
   List<Subject> get subjects => _subjectBox.values.toList();
   List<StudySession> get sessions => _sessionBox.values.toList();
@@ -112,6 +113,7 @@ class AppProvider extends ChangeNotifier {
     _profileBox = await Hive.openBox<UserProfile>('profiles');
     _chapterPlanBox = await Hive.openBox<ChapterPlan>('chapterPlans');
     _seededBox = await Hive.openBox<bool>('meta');
+    _prefsBox = await Hive.openBox('prefs');
 
     if (_seededBox.get('seeded') != true) {
       await _seedDefaults();
@@ -384,5 +386,37 @@ class AppProvider extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  // ── Progress screen range preference ─────────────────────────────────────
+  // Persisted locally (device-scoped, not synced) so the 進度 page's selected
+  // range/title survives navigation, app restarts, and sign-out/sign-in.
+
+  bool get progressUsesCustomRange =>
+      _prefsBox.get('progress_custom') as bool? ?? false;
+
+  DateTime? get progressCustomStart {
+    final ms = _prefsBox.get('progress_start') as int?;
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  DateTime? get progressCustomEnd {
+    final ms = _prefsBox.get('progress_end') as int?;
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  String get progressCustomTitle =>
+      _prefsBox.get('progress_title') as String? ?? '';
+
+  Future<void> saveProgressWeekMode() async {
+    await _prefsBox.put('progress_custom', false);
+  }
+
+  Future<void> saveProgressCustomRange(
+      DateTime start, DateTime end, String title) async {
+    await _prefsBox.put('progress_custom', true);
+    await _prefsBox.put('progress_start', start.millisecondsSinceEpoch);
+    await _prefsBox.put('progress_end', end.millisecondsSinceEpoch);
+    await _prefsBox.put('progress_title', title);
   }
 }

@@ -59,6 +59,12 @@ class SyncService extends ChangeNotifier {
   Future<void> _start(String uid) async {
     _uid = uid;
     _meta ??= await Hive.openBox<String>('syncMeta');
+    // Guard against duplicate listeners if authStateChanges fires again for
+    // the same/different user without an intervening sign-out.
+    for (final s in _collectionSubs) {
+      await s.cancel();
+    }
+    _collectionSubs.clear();
     _setStatus(SyncStatus.syncing);
 
     // Account-switch handling: if a *different* account previously synced on
@@ -79,7 +85,8 @@ class SyncService extends ChangeNotifier {
       await _pushAll();
       // 3. Attach live listeners for ongoing remote changes.
       _attachListeners();
-      _setStatus(SyncStatus.synced);
+      // _pushAll already set synced/error; don't mask a push error here.
+      if (_status != SyncStatus.error) _setStatus(SyncStatus.synced);
     } catch (e) {
       debugPrint('Sync start error: $e');
       _setStatus(SyncStatus.error, error: e.toString());
@@ -138,7 +145,11 @@ class SyncService extends ChangeNotifier {
         if (local == null || remoteUpdated >= local.updatedAt) {
           final obj = fromMapFor(col, data);
           byId[doc.id] = obj;
-          await _writeMeta(col, doc.id, remoteUpdated, _hashOf(data));
+          // Hash the normalized business-data shape (same as _pushAll uses),
+          // not the raw doc — the raw doc also carries updatedAt/ownerId,
+          // which would make every subsequent push think the record changed.
+          await _writeMeta(
+              col, doc.id, remoteUpdated, _hashOf(toMapFor(col, obj)));
         }
       }
       if (byId.isNotEmpty) {
@@ -173,8 +184,11 @@ class SyncService extends ChangeNotifier {
       final remoteUpdated = (data['updatedAt'] as num?)?.toInt() ?? 0;
       final local = _metaFor(col, doc.id);
       if (local == null || remoteUpdated > local.updatedAt) {
-        byId[doc.id] = fromMapFor(col, data);
-        await _writeMeta(col, doc.id, remoteUpdated, _hashOf(data));
+        final obj = fromMapFor(col, data);
+        byId[doc.id] = obj;
+        // See _initialPull: hash the normalized shape, not the raw doc.
+        await _writeMeta(
+            col, doc.id, remoteUpdated, _hashOf(toMapFor(col, obj)));
       }
     }
     if (byId.isNotEmpty) {
@@ -215,7 +229,11 @@ class SyncService extends ChangeNotifier {
               'ownerId': _uid,
             };
             await _col(col).doc(id).set(payload);
-            await _writeMeta(col, id, now, _hashOf(payload));
+            // Store the hash of the business-data shape (`map`, matching
+            // what we compare against next time) — not `payload`, which
+            // also carries updatedAt/ownerId and would never match `hash`
+            // computed above, causing every record to look "changed" forever.
+            await _writeMeta(col, id, now, hash);
           }
         }
 

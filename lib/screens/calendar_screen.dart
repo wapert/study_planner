@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../providers/app_provider.dart';
 import '../models/calendar_event.dart';
 import '../models/chapter_plan.dart';
+import '../models/todo_item.dart';
 import '../utils/date_utils.dart';
 import '../widgets/session_tile.dart';
 import '../widgets/event_chip.dart';
@@ -29,6 +30,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final provider = context.watch<AppProvider>();
     final sessions = provider.sessionsForDay(_selected);
     final events = provider.eventsForDay(_selected);
+    final todos = provider.todosForDay(_selected);
 
     // Chapter plans active on the selected day (plan, rangeLabel)
     final chapterItems = _chapterItemsForDay(provider, _selected);
@@ -59,7 +61,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               final s = provider.sessionsForDay(day);
               final e = provider.eventsForDay(day);
               final c = _chapterItemsForDay(provider, day);
-              return [...s, ...e, ...c];
+              final t = provider.todosForDay(day);
+              return [...s, ...e, ...c, ...t];
             },
             calendarStyle: CalendarStyle(
               markerDecoration: BoxDecoration(
@@ -133,6 +136,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   const SizedBox(height: 12),
                 ],
 
+                // ── To-dos ───────────────────────────────────────────────
+                if (todos.isNotEmpty) ...[
+                  const Text('待辦事項',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  ...todos.map((t) => _CalendarTodoTile(
+                        todo: t,
+                        date: _selected,
+                        subject: t.subjectId == null
+                            ? null
+                            : provider.subjectById(t.subjectId!),
+                      )),
+                  const SizedBox(height: 12),
+                ],
+
                 // ── Study sessions ──────────────────────────────────────
                 if (sessions.isNotEmpty) ...[
                   const Text('讀書時段',
@@ -143,7 +161,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                 if (chapterItems.isEmpty &&
                     events.isEmpty &&
-                    sessions.isEmpty)
+                    sessions.isEmpty &&
+                    todos.isEmpty)
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.only(top: 32),
@@ -322,6 +341,125 @@ class _ChapterCalendarTile extends StatelessWidget {
                 padding: EdgeInsets.zero,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── To-do tile in calendar detail ─────────────────────────────────────────────
+
+class _CalendarTodoTile extends StatelessWidget {
+  final TodoItem todo;
+  final DateTime date;
+  final dynamic subject;
+
+  const _CalendarTodoTile({
+    required this.todo,
+    required this.date,
+    required this.subject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final done = todo.isCompletedOn(date);
+    final color =
+        subject != null ? Color(subject.colorValue as int) : Colors.grey.shade700;
+
+    return Dismissible(
+      key: Key('cal-todo-${todo.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: Colors.red.shade50,
+        child: const Icon(Icons.delete_outline, color: Colors.red),
+      ),
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('刪除待辦'),
+                content: Text('確定刪除「${todo.title}」？\n（所有星期的此項目都會刪除）'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('取消')),
+                  FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('刪除'),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
+      },
+      onDismissed: (_) => context.read<AppProvider>().deleteTodo(todo.id),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        elevation: 0,
+        color: color.withAlpha(18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: color.withAlpha(60)),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => context.read<AppProvider>().toggleTodo(todo, date),
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: done ? color : Colors.transparent,
+                    border: Border.all(
+                        color: done ? color : Colors.grey.shade400,
+                        width: 1.8),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: done
+                      ? const Icon(Icons.check, size: 13, color: Colors.white)
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    todo.title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: done
+                          ? Colors.grey
+                          : Theme.of(context).colorScheme.onSurface,
+                      decoration: done ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                ),
+                if (subject != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: color.withAlpha(35),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      subject.name as String,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: color,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
