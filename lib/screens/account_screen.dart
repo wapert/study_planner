@@ -26,18 +26,20 @@ class AccountScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: _blue,
+              // Same grey the bottom NavigationBar uses.
+              color: Theme.of(context).colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 22,
-                  backgroundColor: Colors.white24,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Text(
                     initialFor(auth.email),
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 20,
                         fontWeight: FontWeight.bold),
                   ),
@@ -47,13 +49,16 @@ class AccountScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('已登入',
+                      Text('已登入',
                           style: TextStyle(
-                              color: Colors.white70, fontSize: 12)),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              fontSize: 12)),
                       const SizedBox(height: 2),
                       Text(auth.email ?? '—',
-                          style: const TextStyle(
-                              color: Colors.white,
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 16,
                               fontWeight: FontWeight.bold)),
                     ],

@@ -460,20 +460,22 @@ class _ProfileCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E88E5),
+            // Same grey the bottom NavigationBar uses.
+            color: Theme.of(context).colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor: Colors.white24,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Text(
                   p.name.isNotEmpty
                       ? p.name.characters.first
                       : '?',
-                  style: const TextStyle(
-                      color: Colors.white,
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 18,
                       fontWeight: FontWeight.bold),
                 ),
@@ -484,20 +486,25 @@ class _ProfileCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(p.name,
-                        style: const TextStyle(
-                            color: Colors.white,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontWeight: FontWeight.bold,
                             fontSize: 16)),
                     const SizedBox(height: 2),
                     Text(
                       p.schoolLevel.label,
-                      style: const TextStyle(
-                          color: Colors.white70, fontSize: 13),
+                      style: TextStyle(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
+                          fontSize: 13),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.edit_outlined, color: Colors.white54, size: 18),
+              Icon(Icons.edit_outlined,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 18),
             ],
           ),
         ),

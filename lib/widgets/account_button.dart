@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../screens/account_screen.dart';
 
-const _blue = Color(0xFF1E88E5);
-
 /// Returns the capitalised first letter of [email], or '?' if unavailable.
 String initialFor(String? email) {
   final e = email?.trim() ?? '';
@@ -24,11 +22,12 @@ class AccountButton extends StatelessWidget {
       padding: EdgeInsets.zero,
       icon: CircleAvatar(
         radius: 15,
-        backgroundColor: _blue,
+        // Same grey the bottom NavigationBar uses.
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
         child: Text(
           initialFor(email),
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 14,
             fontWeight: FontWeight.bold,
           ),
