@@ -1,33 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
 import '../screens/account_screen.dart';
 
-/// Returns the capitalised first letter of [email], or '?' if unavailable.
-String initialFor(String? email) {
-  final e = email?.trim() ?? '';
-  return e.isEmpty ? '?' : e.characters.first.toUpperCase();
+const _blue = Color(0xFF1E88E5);
+
+/// Returns the capitalised first letter of [text], or '?' if unavailable.
+String initialFor(String? text) {
+  final t = text?.trim() ?? '';
+  return t.isEmpty ? '?' : t.characters.first.toUpperCase();
 }
 
-/// Top-right account button showing the user's email initial. Opens the
+/// Initial to show for the account: the profile name's first letter when a
+/// name is set, otherwise the email's.
+String accountInitial(BuildContext context) {
+  final name = context.watch<AppProvider>().profile?.name.trim() ?? '';
+  if (name.isNotEmpty) return initialFor(name);
+  return initialFor(context.watch<AuthService>().email);
+}
+
+/// Top-right account button showing the user's initial. Opens the
 /// 帳號與同步 (Account & Sync) screen. Shared across the main tabs.
 class AccountButton extends StatelessWidget {
   const AccountButton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final email = context.watch<AuthService>().email;
     return IconButton(
       tooltip: '帳號與同步',
       padding: EdgeInsets.zero,
       icon: CircleAvatar(
         radius: 15,
-        // Same grey the bottom NavigationBar uses.
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+        backgroundColor: _blue,
         child: Text(
-          initialFor(email),
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
+          accountInitial(context),
+          style: const TextStyle(
+            color: Colors.white,
             fontSize: 14,
             fontWeight: FontWeight.bold,
           ),

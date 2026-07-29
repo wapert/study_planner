@@ -37,7 +37,7 @@ class AccountScreen extends StatelessWidget {
                   backgroundColor:
                       Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Text(
-                    initialFor(auth.email),
+                    accountInitial(context),
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 20,
