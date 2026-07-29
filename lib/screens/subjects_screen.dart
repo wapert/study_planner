@@ -658,14 +658,14 @@ class _ChapterPlanRow extends StatelessWidget {
             ? Row(
                 children: [
                   Icon(Icons.menu_book_outlined,
-                      size: 14, color: Colors.grey.shade700),
+                      size: 14, color: Colors.grey.shade600),
                   const SizedBox(width: 6),
                   Text(
                     '+ 設定章節計畫',
                     style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade800,
-                        fontWeight: FontWeight.w600),
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500),
                   ),
                 ],
               )
@@ -734,7 +734,11 @@ class _SubjectTile extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w500)),
       trailing: PopupMenuButton<String>(
         tooltip: '設定',
-        icon: const Icon(Icons.settings_outlined),
+        icon: const Icon(Icons.settings_outlined, size: 18),
+        iconSize: 18,
+        splashRadius: 18,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
         onSelected: (v) {
           if (v == 'color') {
             onColorEdit();
@@ -806,13 +810,13 @@ class _WeeklyGoalRow extends StatelessWidget {
               )
             : Row(
                 children: [
-                  Icon(Icons.schedule, size: 14, color: Colors.grey.shade700),
+                  Icon(Icons.schedule, size: 14, color: Colors.grey.shade600),
                   const SizedBox(width: 6),
                   Text('+ 設定每週目標',
                       style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade800,
-                          fontWeight: FontWeight.w600)),
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500)),
                 ],
               ),
       ),
