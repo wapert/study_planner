@@ -69,6 +69,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
           (perSubject[s.subjectId] ?? 0) + s.durationMinutes;
     }
 
+    // Subjects that actually have a planned time goal.
+    final timedSubjects =
+        provider.subjects.where((s) => s.weeklyGoalMinutes > 0).toList();
+
     // Chapter plans whose period overlaps the selected range.
     final plans = provider.chapterPlans.where((p) {
       final ps = p.startDate.dateOnly;
@@ -190,10 +194,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ],
 
           // ── Per-subject time completion ─────────────────────────────────
-          const Text('各科目時間完成度',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 12),
-          ...provider.subjects.map((s) {
+          // Only subjects with a planned weekly goal are listed.
+          if (timedSubjects.isNotEmpty) ...[
+            const Text('計劃時間完成度',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+          ],
+          ...timedSubjects.map((s) {
             final done = perSubject[s.id] ?? 0;
             // Goal is weekly; scale it to the range length.
             final goal = (s.weeklyGoalMinutes * days / 7).round();

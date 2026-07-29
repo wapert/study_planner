@@ -183,6 +183,9 @@ class _ProgressTabState extends State<_ProgressTab> {
           (perSubject[s.subjectId] ?? 0) + s.durationMinutes;
     }
     final activePlans = widget.plans.where((p) => !p.isExpired).toList();
+    // Subjects that actually have a planned time goal.
+    final timedSubjects =
+        widget.subjects.where((s) => s.weeklyGoalMinutes > 0).toList();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -215,10 +218,13 @@ class _ProgressTabState extends State<_ProgressTab> {
           ),
         ),
         const SizedBox(height: 16),
-        const Text('各科目時間完成度',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 12),
-        ...widget.subjects.map((s) {
+        // Only subjects with a planned weekly goal are listed.
+        if (timedSubjects.isNotEmpty) ...[
+          const Text('計劃時間完成度',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 12),
+        ],
+        ...timedSubjects.map((s) {
           final done = perSubject[s.id] ?? 0;
           final progress = s.weeklyGoalMinutes > 0
               ? (done / s.weeklyGoalMinutes).clamp(0.0, 1.0)
