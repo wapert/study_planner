@@ -658,14 +658,14 @@ class _ChapterPlanRow extends StatelessWidget {
             ? Row(
                 children: [
                   Icon(Icons.menu_book_outlined,
-                      size: 14, color: Colors.grey.shade400),
+                      size: 14, color: Colors.grey.shade700),
                   const SizedBox(width: 6),
                   Text(
                     '+ 設定章節計畫',
                     style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade400,
-                        fontWeight: FontWeight.w500),
+                        color: Colors.grey.shade800,
+                        fontWeight: FontWeight.w600),
                   ),
                 ],
               )
@@ -703,7 +703,7 @@ class _ChapterPlanRow extends StatelessWidget {
                       )),
                   const SizedBox(width: 4),
                   Icon(Icons.edit_outlined,
-                      size: 13, color: Colors.grey.shade400),
+                      size: 13, color: Colors.grey.shade600),
                 ],
               ),
       ),
@@ -732,17 +732,37 @@ class _SubjectTile extends StatelessWidget {
           backgroundColor: Color(subject.colorValue), radius: 14),
       title: Text(subject.name,
           style: const TextStyle(fontWeight: FontWeight.w500)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-              icon: const Icon(Icons.palette_outlined),
-              tooltip: '編輯顏色',
-              onPressed: onColorEdit),
-          IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: '刪除科目',
-              onPressed: onDelete),
+      trailing: PopupMenuButton<String>(
+        tooltip: '設定',
+        icon: const Icon(Icons.settings_outlined),
+        onSelected: (v) {
+          if (v == 'color') {
+            onColorEdit();
+          } else if (v == 'delete') {
+            onDelete();
+          }
+        },
+        itemBuilder: (_) => const [
+          PopupMenuItem(
+            value: 'color',
+            child: Row(
+              children: [
+                Icon(Icons.palette_outlined, size: 20),
+                SizedBox(width: 10),
+                Text('編輯顏色'),
+              ],
+            ),
+          ),
+          PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                SizedBox(width: 10),
+                Text('刪除科目', style: TextStyle(color: Colors.red)),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -781,18 +801,18 @@ class _WeeklyGoalRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Icon(Icons.edit_outlined,
-                      size: 13, color: Colors.grey.shade400),
+                      size: 13, color: Colors.grey.shade600),
                 ],
               )
             : Row(
                 children: [
-                  Icon(Icons.schedule, size: 14, color: Colors.grey.shade400),
+                  Icon(Icons.schedule, size: 14, color: Colors.grey.shade700),
                   const SizedBox(width: 6),
                   Text('+ 設定每週目標',
                       style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade400,
-                          fontWeight: FontWeight.w500)),
+                          color: Colors.grey.shade800,
+                          fontWeight: FontWeight.w600)),
                 ],
               ),
       ),
