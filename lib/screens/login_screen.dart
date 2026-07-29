@@ -14,6 +14,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _pwCtrl = TextEditingController();
+  final _pwConfirmCtrl = TextEditingController();
   bool _isSignUp = false;
   bool _busy = false;
   bool _obscure = true;
@@ -23,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _pwCtrl.dispose();
+    _pwConfirmCtrl.dispose();
     super.dispose();
   }
 
@@ -35,6 +37,10 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     if (_isSignUp && pw.length < 6) {
       setState(() => _error = '密碼至少需要 6 個字元');
+      return;
+    }
+    if (_isSignUp && pw != _pwConfirmCtrl.text) {
+      setState(() => _error = '兩次輸入的密碼不一致');
       return;
     }
     setState(() {
@@ -115,8 +121,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextField(
                     controller: _pwCtrl,
                     obscureText: _obscure,
-                    onSubmitted: (_) => _submit(),
-                    decoration: _fieldDeco('密碼', Icons.lock_outline).copyWith(
+                    textInputAction: _isSignUp
+                        ? TextInputAction.next
+                        : TextInputAction.done,
+                    onSubmitted: (_) => _isSignUp ? null : _submit(),
+                    decoration:
+                        _fieldDeco(_isSignUp ? '設定密碼' : '密碼', Icons.lock_outline)
+                            .copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
                             _obscure
@@ -128,6 +139,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
+
+                  // Confirm password (sign-up only)
+                  if (_isSignUp) ...[
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _pwConfirmCtrl,
+                      obscureText: _obscure,
+                      onSubmitted: (_) => _submit(),
+                      decoration: _fieldDeco('確認密碼', Icons.lock_outline),
+                    ),
+                  ],
 
                   if (!_isSignUp)
                     Align(
@@ -204,6 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             : () => setState(() {
                                   _isSignUp = !_isSignUp;
                                   _error = null;
+                                  _pwConfirmCtrl.clear();
                                 }),
                         child: Text(_isSignUp ? '登入' : '註冊',
                             style: const TextStyle(
