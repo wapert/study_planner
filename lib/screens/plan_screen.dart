@@ -50,8 +50,8 @@ class _PlanScreenState extends State<PlanScreen> {
         ],
       ),
       body: ListView.builder(
-        // Room for the two stacked FABs.
-        padding: const EdgeInsets.only(bottom: 150),
+        // Room for the compact action buttons.
+        padding: const EdgeInsets.only(bottom: 80),
         itemCount: 7,
         itemBuilder: (context, i) {
           final day = _weekStart.add(Duration(days: i));
@@ -223,24 +223,21 @@ class _PlanScreenState extends State<PlanScreen> {
           );
         },
       ),
-      floatingActionButton: Column(
+      floatingActionButton: Row(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          FloatingActionButton.extended(
-            heroTag: 'planAddChapter',
+          _MiniActionButton(
+            icon: Icons.menu_book_outlined,
+            label: '章節計畫',
             onPressed: () =>
                 _showAddChapterPlan(context, DateTime.now()),
-            icon: const Icon(Icons.menu_book_outlined),
-            label: const Text('章節計畫'),
           ),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'planAddSession',
+          const SizedBox(width: 10),
+          _MiniActionButton(
+            icon: Icons.timer_outlined,
+            label: '新增時段',
             onPressed: () =>
                 _showAddSessionDialog(context, DateTime.now()),
-            icon: const Icon(Icons.timer_outlined),
-            label: const Text('新增時段'),
           ),
         ],
       ),
@@ -428,6 +425,54 @@ class _PlanScreenState extends State<PlanScreen> {
               child: const Text('新增'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Compact bottom action button ──────────────────────────────────────────────
+
+/// A small pill-shaped action button — roughly half the height of a standard
+/// extended FAB, so two fit comfortably side by side.
+class _MiniActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const _MiniActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.primaryContainer,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 2,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: scheme.onPrimaryContainer),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
