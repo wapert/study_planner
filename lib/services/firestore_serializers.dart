@@ -90,6 +90,7 @@ Map<String, dynamic> todoToMap(TodoItem t) => {
       'subjectId': t.subjectId,
       'weekdays': t.weekdays,
       'completedDateKeys': t.completedDateKeys,
+      'onDateKey': t.onDateKey,
     };
 
 TodoItem todoFromMap(Map<String, dynamic> m) => TodoItem(
@@ -100,6 +101,7 @@ TodoItem todoFromMap(Map<String, dynamic> m) => TodoItem(
       completedDateKeys: ((m['completedDateKeys'] as List?) ?? [])
           .map((e) => (e as num).toInt())
           .toList(),
+      onDateKey: (m['onDateKey'] as num?)?.toInt(),
     );
 
 // ── UserProfile ───────────────────────────────────────────────────────────────

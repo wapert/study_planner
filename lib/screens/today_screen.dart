@@ -7,6 +7,7 @@ import '../models/todo_item.dart';
 import '../models/chapter_plan.dart';
 import '../providers/app_provider.dart';
 import '../widgets/account_button.dart';
+import '../widgets/todo_sheet.dart';
 import '../utils/date_utils.dart';
 
 const _uuid = Uuid();
@@ -150,7 +151,8 @@ class _TodayScreenState extends State<TodayScreen> {
                         _IconAction(
                           icon: Icons.add_circle_outline,
                           tooltip: '新增待辦',
-                          onTap: () => _showTodoSheet(context),
+                          onTap: () =>
+                              showTodoSheet(context, date: _selected),
                         ),
                       ],
                     ),
@@ -213,199 +215,6 @@ class _TodayScreenState extends State<TodayScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // ── Bottom sheet: add To-Do ───────────────────────────────────────────────
-
-  void _showTodoSheet(BuildContext context) {
-    final provider = context.read<AppProvider>();
-    final subjects = provider.subjects;
-    final titleCtrl = TextEditingController();
-    String? selectedSubjectId;
-    // Default: current weekday selected
-    final selectedWeekdays = <int>{_selected.weekday};
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) {
-          final selectedColor = selectedSubjectId == null
-              ? Colors.black
-              : Color(subjects
-                  .firstWhere((s) => s.id == selectedSubjectId)
-                  .colorValue);
-
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 24,
-              right: 24,
-              top: 24,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('新增待辦事項',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-
-                // Title field
-                TextField(
-                  controller: titleCtrl,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: '待辦事項名稱',
-                    filled: true,
-                    fillColor: Colors.grey.shade100,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Subject picker
-                if (subjects.isNotEmpty) ...[
-                  const Text('科目（選填）',
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('無'),
-                        selected: selectedSubjectId == null,
-                        onSelected: (_) =>
-                            setModal(() => selectedSubjectId = null),
-                      ),
-                      ...subjects.map((s) => ChoiceChip(
-                            avatar: CircleAvatar(
-                                backgroundColor: Color(s.colorValue),
-                                radius: 6),
-                            label: Text(s.name),
-                            selected: selectedSubjectId == s.id,
-                            onSelected: (_) =>
-                                setModal(() => selectedSubjectId = s.id),
-                          )),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Weekday chips
-                const Text('重複星期',
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Row(
-                  children: List.generate(7, (i) {
-                    final wd = i + 1; // 1=Mon
-                    final active = selectedWeekdays.contains(wd);
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () => setModal(() {
-                          if (active) {
-                            selectedWeekdays.remove(wd);
-                          } else {
-                            selectedWeekdays.add(wd);
-                          }
-                        }),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: active
-                                ? selectedColor
-                                : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: Text(
-                              _weekdayShort[i],
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color:
-                                    active ? Colors.white : Colors.black54,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () => setModal(() {
-                    if (selectedWeekdays.length == 7) {
-                      selectedWeekdays.clear();
-                    } else {
-                      selectedWeekdays.addAll([1, 2, 3, 4, 5, 6, 7]);
-                    }
-                  }),
-                  child: Row(
-                    children: [
-                      Icon(
-                        selectedWeekdays.length == 7
-                            ? Icons.check_box
-                            : Icons.check_box_outline_blank,
-                        size: 18,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 6),
-                      const Text('每天',
-                          style: TextStyle(fontSize: 13, color: Colors.grey)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Confirm
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: selectedColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      final title = titleCtrl.text.trim();
-                      if (title.isEmpty) return;
-                      context.read<AppProvider>().addTodo(TodoItem(
-                            id: _uuid.v4(),
-                            title: title,
-                            subjectId: selectedSubjectId,
-                            weekdays: selectedWeekdays.toList()..sort(),
-                          ));
-                      Navigator.pop(ctx);
-                    },
-                    child: const Text('新增', style: TextStyle(fontSize: 16)),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
@@ -738,11 +547,26 @@ class _TodoTile extends StatelessWidget {
                             ),
                           ),
                         ],
-                        _WeekdayBadges(weekdays: todo.weekdays, color: color),
+                        if (todo.isRepeating)
+                          _WeekdayBadges(
+                              weekdays: todo.weekdays, color: color)
+                        else
+                          Text('單次',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade500)),
                       ],
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                icon: Icon(Icons.edit_outlined,
+                    size: 18, color: Colors.grey.shade400),
+                tooltip: '編輯',
+                visualDensity: VisualDensity.compact,
+                onPressed: () =>
+                    showTodoSheet(context, date: date, existing: todo),
               ),
             ],
           ),

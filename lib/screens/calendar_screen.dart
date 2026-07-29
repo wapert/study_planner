@@ -11,6 +11,7 @@ import '../widgets/session_tile.dart';
 import '../widgets/event_chip.dart';
 import '../widgets/chapter_plan_sheet.dart';
 import '../widgets/account_button.dart';
+import '../widgets/todo_sheet.dart';
 
 const _uuid = Uuid();
 
@@ -138,8 +139,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                 // ── To-dos ───────────────────────────────────────────────
                 if (todos.isNotEmpty) ...[
-                  const Text('待辦事項',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      const Text('待辦事項',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline, size: 20),
+                        tooltip: '新增待辦',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () =>
+                            showTodoSheet(context, date: _selected),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 6),
                   ...todos.map((t) => _CalendarTodoTile(
                         todo: t,
@@ -458,6 +471,16 @@ class _CalendarTodoTile extends StatelessWidget {
                           fontWeight: FontWeight.w600),
                     ),
                   ),
+                IconButton(
+                  icon: Icon(Icons.edit_outlined,
+                      size: 16, color: Colors.grey.shade500),
+                  tooltip: '編輯',
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.only(left: 6),
+                  constraints: const BoxConstraints(),
+                  onPressed: () =>
+                      showTodoSheet(context, date: date, existing: todo),
+                ),
               ],
             ),
           ),
