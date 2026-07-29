@@ -50,7 +50,8 @@ class _PlanScreenState extends State<PlanScreen> {
         ],
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 80),
+        // Room for the two stacked FABs.
+        padding: const EdgeInsets.only(bottom: 150),
         itemCount: 7,
         itemBuilder: (context, i) {
           final day = _weekStart.add(Duration(days: i));
@@ -97,9 +98,9 @@ class _PlanScreenState extends State<PlanScreen> {
                       onPressed: () =>
                           _showAddChapterPlan(context, day),
                     ),
-                    // Add session
+                    // Add session — same icon as the 新增時段 button below
                     IconButton(
-                      icon: const Icon(Icons.add, size: 20),
+                      icon: const Icon(Icons.timer_outlined, size: 19),
                       tooltip: '新增讀書時段',
                       visualDensity: VisualDensity.compact,
                       onPressed: () =>
@@ -222,11 +223,26 @@ class _PlanScreenState extends State<PlanScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            _showAddSessionDialog(context, DateTime.now()),
-        icon: const Icon(Icons.timer_outlined),
-        label: const Text('新增時段'),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'planAddChapter',
+            onPressed: () =>
+                _showAddChapterPlan(context, DateTime.now()),
+            icon: const Icon(Icons.menu_book_outlined),
+            label: const Text('章節計畫'),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            heroTag: 'planAddSession',
+            onPressed: () =>
+                _showAddSessionDialog(context, DateTime.now()),
+            icon: const Icon(Icons.timer_outlined),
+            label: const Text('新增時段'),
+          ),
+        ],
       ),
     );
   }
