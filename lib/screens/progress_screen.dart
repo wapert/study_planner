@@ -15,44 +15,44 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
-  bool _custom = false;
+  // Week navigation is transient UI state; the custom range lives in the
+  // provider (persisted per-account) so it never leaks between users.
   DateTime _weekStart = DateTime.now().weekStart;
-  DateTime _customStart = DateTime.now().weekStart;
-  DateTime _customEnd = DateTime.now().weekStart.add(const Duration(days: 6));
-  String _customTitle = '';
 
-  @override
-  void initState() {
-    super.initState();
-    // Restore the last-selected range so it survives navigation, app
-    // restarts, and sign-out/sign-in (persisted locally on-device).
-    final provider = context.read<AppProvider>();
-    if (provider.progressUsesCustomRange) {
-      final start = provider.progressCustomStart;
-      final end = provider.progressCustomEnd;
-      if (start != null && end != null) {
-        _custom = true;
-        _customStart = start;
-        _customEnd = end;
-        _customTitle = provider.progressCustomTitle;
-      }
-    }
-  }
+  bool _customOf(AppProvider p) =>
+      p.progressUsesCustomRange &&
+      p.progressCustomStart != null &&
+      p.progressCustomEnd != null;
 
-  (DateTime, DateTime) get _range => _custom
-      ? (_customStart.dateOnly, _customEnd.dateOnly)
+  (DateTime, DateTime) _rangeOf(AppProvider p) => _customOf(p)
+      ? (p.progressCustomStart!.dateOnly, p.progressCustomEnd!.dateOnly)
       : (_weekStart.dateOnly, _weekStart.add(const Duration(days: 6)).dateOnly);
 
-  bool _inRange(DateTime d) {
-    final (s, e) = _range;
+  bool _inRange(AppProvider p, DateTime d) {
+    final (s, e) = _rangeOf(p);
     final x = d.dateOnly;
     return !x.isBefore(s) && !x.isAfter(e);
+  }
+
+  /// Label for the range selector. Only says 本週 when the shown week really
+  /// is the current one; otherwise shows the actual dates.
+  String _rangeLabel(
+      AppProvider p, bool custom, DateTime rStart, DateTime rEnd) {
+    if (custom) {
+      final title = p.progressCustomTitle;
+      return title.isNotEmpty ? title : '自訂';
+    }
+    if (_weekStart.dateOnly == DateTime.now().weekStart.dateOnly) {
+      return '本週';
+    }
+    return '${rStart.month}/${rStart.day}–${rEnd.month}/${rEnd.day}';
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
-    final (rStart, rEnd) = _range;
+    final custom = _customOf(provider);
+    final (rStart, rEnd) = _rangeOf(provider);
     final days = rEnd.difference(rStart).inDays + 1;
 
     // Completed sessions in the selected range (with an existing subject).
@@ -60,7 +60,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         .where((s) =>
             s.isCompleted &&
             provider.subjectById(s.subjectId) != null &&
-            _inRange(s.date))
+            _inRange(provider, s.date))
         .toList();
     final totalMin = completed.fold(0, (a, s) => a + s.durationMinutes);
     final perSubject = <String, int>{};
@@ -83,7 +83,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.chevron_left),
-            onPressed: _custom
+            onPressed: custom
                 ? null
                 : () => setState(() =>
                     _weekStart = _weekStart.subtract(const Duration(days: 7))),
@@ -92,10 +92,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             tooltip: '選擇範圍',
             onSelected: (v) {
               if (v == 'week') {
-                setState(() {
-                  _custom = false;
-                  _weekStart = DateTime.now().weekStart;
-                });
+                setState(() => _weekStart = DateTime.now().weekStart);
                 context.read<AppProvider>().saveProgressWeekMode();
               } else if (v == 'custom') {
                 _pickCustom();
@@ -112,9 +109,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 children: [
                   Flexible(
                     child: Text(
-                      _custom
-                          ? (_customTitle.isNotEmpty ? _customTitle : '自訂')
-                          : '本週',
+                      _rangeLabel(provider, custom, rStart, rEnd),
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
@@ -126,7 +121,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
-            onPressed: _custom
+            onPressed: custom
                 ? null
                 : () => setState(() =>
                     _weekStart = _weekStart.add(const Duration(days: 7))),
@@ -162,10 +157,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_custom && _customTitle.isNotEmpty)
+                  if (custom && provider.progressCustomTitle.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(_customTitle,
+                      child: Text(provider.progressCustomTitle,
                           style: const TextStyle(
                               fontWeight: FontWeight.bold, fontSize: 15)),
                     ),
@@ -260,8 +255,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
               if (subject == null) return const SizedBox.shrink();
 
               // Study dates of this plan that fall inside the selected range.
-              final studyDates =
-                  plan.allStudyDates.where(_inRange).toList();
+              final studyDates = plan.allStudyDates
+                  .where((d) => _inRange(provider, d))
+                  .toList();
               if (studyDates.isEmpty) return const SizedBox.shrink();
 
               int assigned = 0;
@@ -354,10 +350,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
   // ── Custom range picker ─────────────────────────────────────────────────
 
   Future<void> _pickCustom() async {
-    DateTime start = _custom ? _customStart : _weekStart;
-    DateTime end =
-        _custom ? _customEnd : _weekStart.add(const Duration(days: 6));
-    final titleCtrl = TextEditingController(text: _customTitle);
+    final provider = context.read<AppProvider>();
+    final wasCustom = _customOf(provider);
+    DateTime start =
+        wasCustom ? provider.progressCustomStart! : _weekStart;
+    DateTime end = wasCustom
+        ? provider.progressCustomEnd!
+        : _weekStart.add(const Duration(days: 6));
+    final titleCtrl =
+        TextEditingController(text: provider.progressCustomTitle);
 
     final ok = await showDialog<bool>(
       context: context,
@@ -427,17 +428,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
       ),
     );
 
-    if (ok == true) {
-      final title = titleCtrl.text.trim();
-      setState(() {
-        _custom = true;
-        _customStart = start;
-        _customEnd = end;
-        _customTitle = title;
-      });
-      if (mounted) {
-        context.read<AppProvider>().saveProgressCustomRange(start, end, title);
-      }
+    if (ok == true && mounted) {
+      // Saving notifies the provider, which rebuilds this screen.
+      await context
+          .read<AppProvider>()
+          .saveProgressCustomRange(start, end, titleCtrl.text.trim());
     }
   }
 

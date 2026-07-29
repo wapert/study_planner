@@ -391,32 +391,49 @@ class AppProvider extends ChangeNotifier {
   // ── Progress screen range preference ─────────────────────────────────────
   // Persisted locally (device-scoped, not synced) so the 進度 page's selected
   // range/title survives navigation, app restarts, and sign-out/sign-in.
+  // Keys are scoped per account so one user's custom range never shows up
+  // for another user signing in on the same device.
+
+  String? _activeUid;
+
+  /// Called by SyncService when the signed-in account changes (null on
+  /// sign-out), so preference keys can be scoped to that account.
+  void setActiveUser(String? uid) {
+    if (_activeUid == uid) return;
+    _activeUid = uid;
+    notifyListeners();
+  }
+
+  String _prefKey(String name) => '${_activeUid ?? 'local'}/$name';
 
   bool get progressUsesCustomRange =>
-      _prefsBox.get('progress_custom') as bool? ?? false;
+      _prefsBox.get(_prefKey('progress_custom')) as bool? ?? false;
 
   DateTime? get progressCustomStart {
-    final ms = _prefsBox.get('progress_start') as int?;
+    final ms = _prefsBox.get(_prefKey('progress_start')) as int?;
     return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
   }
 
   DateTime? get progressCustomEnd {
-    final ms = _prefsBox.get('progress_end') as int?;
+    final ms = _prefsBox.get(_prefKey('progress_end')) as int?;
     return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
   }
 
   String get progressCustomTitle =>
-      _prefsBox.get('progress_title') as String? ?? '';
+      _prefsBox.get(_prefKey('progress_title')) as String? ?? '';
 
   Future<void> saveProgressWeekMode() async {
-    await _prefsBox.put('progress_custom', false);
+    await _prefsBox.put(_prefKey('progress_custom'), false);
+    notifyListeners();
   }
 
   Future<void> saveProgressCustomRange(
       DateTime start, DateTime end, String title) async {
-    await _prefsBox.put('progress_custom', true);
-    await _prefsBox.put('progress_start', start.millisecondsSinceEpoch);
-    await _prefsBox.put('progress_end', end.millisecondsSinceEpoch);
-    await _prefsBox.put('progress_title', title);
+    await _prefsBox.put(_prefKey('progress_custom'), true);
+    await _prefsBox.put(
+        _prefKey('progress_start'), start.millisecondsSinceEpoch);
+    await _prefsBox.put(_prefKey('progress_end'), end.millisecondsSinceEpoch);
+    await _prefsBox.put(_prefKey('progress_title'), title);
+    notifyListeners();
   }
 }

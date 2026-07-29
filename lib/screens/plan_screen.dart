@@ -39,7 +39,14 @@ class _PlanScreenState extends State<PlanScreen> {
           TextButton(
             onPressed: () =>
                 setState(() => _weekStart = DateTime.now().weekStart),
-            child: const Text('本週'),
+            // Only say 本週 when the shown week really is the current one.
+            child: Text(
+              _weekStart.dateOnly == DateTime.now().weekStart.dateOnly
+                  ? '本週'
+                  : '${_weekStart.month}/${_weekStart.day}'
+                      '–${_weekStart.add(const Duration(days: 6)).month}'
+                      '/${_weekStart.add(const Duration(days: 6)).day}',
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),

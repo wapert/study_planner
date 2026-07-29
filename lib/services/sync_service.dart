@@ -58,6 +58,9 @@ class SyncService extends ChangeNotifier {
 
   Future<void> _start(String uid) async {
     _uid = uid;
+    // Scope device-local preferences (e.g. the 進度 custom range) to this
+    // account so they don't leak to another user on the same device.
+    provider.setActiveUser(uid);
     _meta ??= await Hive.openBox<String>('syncMeta');
     // Guard against duplicate listeners if authStateChanges fires again for
     // the same/different user without an intervening sign-out.
@@ -100,6 +103,7 @@ class SyncService extends ChangeNotifier {
     }
     _collectionSubs.clear();
     _uid = null;
+    provider.setActiveUser(null);
     _setStatus(SyncStatus.offline);
   }
 
