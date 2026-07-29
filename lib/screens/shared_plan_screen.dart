@@ -8,7 +8,7 @@ import '../services/share_service.dart';
 import '../services/firestore_serializers.dart';
 import '../utils/date_utils.dart';
 
-const _blue = Color(0xFF1565C0);
+const _blue = Color(0xFF1E88E5);
 const _weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
 
 /// Read-only view of another user's plan across three tabs:

@@ -5,7 +5,7 @@ import '../providers/app_provider.dart';
 import '../utils/date_utils.dart';
 import '../widgets/account_button.dart';
 
-const _blue = Color(0xFF1565C0);
+const _blue = Color(0xFF1E88E5);
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});

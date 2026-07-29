@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../screens/account_screen.dart';
 
-const _blue = Color(0xFF1565C0);
+const _blue = Color(0xFF1E88E5);
 
 /// Returns the capitalised first letter of [email], or '?' if unavailable.
 String initialFor(String? email) {

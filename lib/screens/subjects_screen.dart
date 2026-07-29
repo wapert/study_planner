@@ -60,8 +60,8 @@ class SubjectsScreen extends StatelessWidget {
           _ProfileCard(profile: profile),
 
           // ── Preset quick-apply bar ──────────────────────────────────────
-          // Shown for first-launch (no profile yet) or a 國中/高中 profile.
-          // Hidden entirely once the user has explicitly chosen 自訂 (custom).
+          // Only shown on first launch (no profile yet). Once a school level
+          // is chosen the presets are already applied, so the bar is hidden.
           if (profile == null) ...[
             _PresetBar(
               label: '國中預設科目',
@@ -73,13 +73,6 @@ class SubjectsScreen extends StatelessWidget {
               label: '高中預設科目',
               level: SchoolLevel.senior,
               subjects: presetsFor(SchoolLevel.senior),
-            ),
-            const Divider(height: 24, indent: 16, endIndent: 16),
-          ] else if (profile.schoolLevel != SchoolLevel.custom) ...[
-            _PresetBar(
-              label: '${profile.schoolLevel.label}預設科目',
-              level: profile.schoolLevel,
-              subjects: presetsFor(profile.schoolLevel),
             ),
             const Divider(height: 24, indent: 16, endIndent: 16),
           ],
@@ -467,7 +460,7 @@ class _ProfileCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1565C0),
+            color: const Color(0xFF1E88E5),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -497,7 +490,7 @@ class _ProfileCard extends StatelessWidget {
                             fontSize: 16)),
                     const SizedBox(height: 2),
                     Text(
-                      '${p.schoolLevel.emoji} ${p.schoolLevel.label}',
+                      p.schoolLevel.label,
                       style: const TextStyle(
                           color: Colors.white70, fontSize: 13),
                     ),
@@ -587,7 +580,7 @@ class _ApplyButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        backgroundColor: const Color(0xFF1565C0),
+        backgroundColor: const Color(0xFF1E88E5),
         foregroundColor: Colors.white,
         textStyle: const TextStyle(fontSize: 12),
       ),
@@ -616,7 +609,7 @@ class _ApplyButton extends StatelessWidget {
               child: const Text('新增缺少的')),
           FilledButton(
               style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF1565C0)),
+                  backgroundColor: const Color(0xFF1E88E5)),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('全部取代')),
         ],

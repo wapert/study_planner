@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 
-const _blue = Color(0xFF1565C0);
+const _blue = Color(0xFF1E88E5);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

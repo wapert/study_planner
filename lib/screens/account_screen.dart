@@ -6,7 +6,7 @@ import '../services/share_service.dart';
 import '../widgets/account_button.dart';
 import 'shared_plan_screen.dart';
 
-const _blue = Color(0xFF1565C0);
+const _blue = Color(0xFF1E88E5);
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
