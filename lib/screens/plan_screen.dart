@@ -135,6 +135,32 @@ class _PlanScreenState extends State<PlanScreen> {
                           16, 4, 16, 4),
                       child: Row(
                         children: [
+                          // Completion checkbox — leading, as on other pages
+                          AnimatedContainer(
+                            duration:
+                                const Duration(milliseconds: 200),
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: done
+                                  ? color
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: done
+                                    ? color
+                                    : Colors.grey.shade400,
+                                width: 1.8,
+                              ),
+                              borderRadius:
+                                  BorderRadius.circular(6),
+                            ),
+                            child: done
+                                ? const Icon(Icons.check,
+                                    size: 13,
+                                    color: Colors.white)
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
                           Container(
                             width: 4,
                             height: 36,
@@ -168,32 +194,6 @@ class _PlanScreenState extends State<PlanScreen> {
                               ),
                             ),
                           ),
-                          // Completion indicator
-                          AnimatedContainer(
-                            duration:
-                                const Duration(milliseconds: 200),
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: done
-                                  ? color
-                                  : Colors.transparent,
-                              border: Border.all(
-                                color: done
-                                    ? color
-                                    : Colors.grey.shade300,
-                                width: 1.5,
-                              ),
-                              borderRadius:
-                                  BorderRadius.circular(5),
-                            ),
-                            child: done
-                                ? const Icon(Icons.check,
-                                    size: 13,
-                                    color: Colors.white)
-                                : null,
-                          ),
-                          const SizedBox(width: 4),
                           // Edit plan
                           GestureDetector(
                             onTap: () => showChapterPlanSheet(

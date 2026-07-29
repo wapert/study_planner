@@ -26,21 +26,48 @@ class SessionTile extends StatelessWidget {
       ),
       onDismissed: (_) => provider.deleteSession(session.id),
       child: ListTile(
-        leading: Container(
-          width: 4,
-          height: 40,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+        onTap: () => provider.toggleSession(session),
+        // Completion checkbox leads the row, matching the other pages.
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: session.isCompleted ? color : Colors.transparent,
+                border: Border.all(
+                  color: session.isCompleted ? color : Colors.grey.shade400,
+                  width: 1.8,
+                ),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: session.isCompleted
+                  ? const Icon(Icons.check, size: 13, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Container(
+              width: 4,
+              height: 40,
+              decoration: BoxDecoration(
+                  color: color, borderRadius: BorderRadius.circular(2)),
+            ),
+          ],
         ),
-        title: Text(subject?.name ?? '已刪除科目'),
+        title: Text(
+          subject?.name ?? '已刪除科目',
+          style: TextStyle(
+            color: session.isCompleted ? Colors.grey : null,
+            decoration:
+                session.isCompleted ? TextDecoration.lineThrough : null,
+          ),
+        ),
         subtitle: Text(
           showDate
               ? '${session.date.month}/${session.date.day}  ${formatHHMM(session.startHour, session.startMinute)}  ${formatDuration(session.durationMinutes)}'
               : '${formatHHMM(session.startHour, session.startMinute)}  ${formatDuration(session.durationMinutes)}${session.note.isNotEmpty ? '  •  ${session.note}' : ''}',
-        ),
-        trailing: Checkbox(
-          value: session.isCompleted,
-          activeColor: color,
-          onChanged: (_) => provider.toggleSession(session),
         ),
       ),
     );
