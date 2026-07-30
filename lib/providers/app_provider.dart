@@ -328,20 +328,19 @@ class AppProvider extends ChangeNotifier {
 
   // ── Chapter Plans ──────────────────────────────────────────────────────────
 
-  ChapterPlan? chapterPlanForSubject(String subjectId) =>
-      _chapterPlanBox.values.cast<ChapterPlan?>().firstWhere(
-            (p) => p?.subjectId == subjectId,
-            orElse: () => null,
-          );
+  /// All chapter plans for a subject. A subject can have several at once —
+  /// e.g. 課本, 講義 and 測驗卷 running in parallel.
+  List<ChapterPlan> chapterPlansForSubject(String subjectId) =>
+      _chapterPlanBox.values
+          .where((p) => p.subjectId == subjectId)
+          .toList()
+        ..sort((a, b) => a.startDateKey.compareTo(b.startDateKey));
+
+  /// Non-expired plans for a subject, in start-date order.
+  List<ChapterPlan> activeChapterPlansForSubject(String subjectId) =>
+      chapterPlansForSubject(subjectId).where((p) => !p.isExpired).toList();
 
   Future<void> saveChapterPlan(ChapterPlan plan) async {
-    // Keep one plan per subject: remove any other (e.g. expired) plans first.
-    final others = _chapterPlanBox.values
-        .where((p) => p.subjectId == plan.subjectId && p.id != plan.id)
-        .toList();
-    for (final o in others) {
-      await o.delete();
-    }
     await _chapterPlanBox.put(plan.id, plan);
     notifyListeners();
   }

@@ -85,9 +85,9 @@ class SubjectsScreen extends StatelessWidget {
             )
           else
             ...subjects.expand((s) {
-              final raw = provider.chapterPlanForSubject(s.id);
-              // Expired plans are treated as absent (show blank / add state).
-              final plan = (raw != null && !raw.isExpired) ? raw : null;
+              // A subject can have several plans at once (課本 / 講義 / 測驗卷…);
+              // expired ones are hidden.
+              final plans = provider.activeChapterPlansForSubject(s.id);
               return [
                 _SubjectTile(
                   subject: s,
@@ -98,10 +98,19 @@ class SubjectsScreen extends StatelessWidget {
                   subject: s,
                   onTap: () => _showGoalDialog(context, s),
                 ),
+                // One row per existing plan…
+                ...plans.map((p) => _ChapterPlanRow(
+                      subject: s,
+                      plan: p,
+                      onTap: () =>
+                          showChapterPlanSheet(context, s, existing: p),
+                    )),
+                // …plus a row to add another.
                 _ChapterPlanRow(
                   subject: s,
-                  plan: plan,
-                  onTap: () => showChapterPlanSheet(context, s, existing: plan),
+                  plan: null,
+                  hasOthers: plans.isNotEmpty,
+                  onTap: () => showChapterPlanSheet(context, s),
                 ),
               ];
             }),
@@ -638,12 +647,17 @@ const _wdShort = ['一', '二', '三', '四', '五', '六', '日'];
 class _ChapterPlanRow extends StatelessWidget {
   final Subject subject;
   final ChapterPlan? plan;
+
+  /// True when this "add" row follows existing plans, so the label reads
+  /// 新增章節計畫 instead of 設定章節計畫.
+  final bool hasOthers;
   final VoidCallback onTap;
 
   const _ChapterPlanRow({
     required this.subject,
     required this.plan,
     required this.onTap,
+    this.hasOthers = false,
   });
 
   @override
@@ -653,15 +667,17 @@ class _ChapterPlanRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(56, 0, 16, 12),
+        // Stacked plan rows sit closer together; the trailing add row gets
+        // the full gap before the next subject.
+        padding: EdgeInsets.fromLTRB(56, 0, 16, plan != null ? 6 : 12),
         child: plan == null
             ? Row(
                 children: [
-                  Icon(Icons.menu_book_outlined,
+                  Icon(Icons.add,
                       size: 14, color: Colors.grey.shade600),
                   const SizedBox(width: 6),
                   Text(
-                    '+ 設定章節計畫',
+                    hasOthers ? '新增章節計畫' : '設定章節計畫',
                     style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,

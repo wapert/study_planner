@@ -270,21 +270,21 @@ class _PlanScreenState extends State<PlanScreen> {
           child: ListView(
             shrinkWrap: true,
             children: subjects.map((s) {
-              final raw = provider.chapterPlanForSubject(s.id);
+              // A subject can hold several plans, so this always creates a
+              // new one; existing plans are edited from their own row.
               final existing =
-                  (raw != null && !raw.isExpired) ? raw : null;
+                  provider.activeChapterPlansForSubject(s.id);
               return ListTile(
                 leading: CircleAvatar(
                     backgroundColor: Color(s.colorValue), radius: 10),
                 title: Text(s.name),
-                subtitle: existing != null
-                    ? Text('已設定：${existing.fullRangeLabel}',
-                        style: const TextStyle(fontSize: 12))
-                    : null,
+                subtitle: existing.isEmpty
+                    ? null
+                    : Text('已有 ${existing.length} 個計畫',
+                        style: const TextStyle(fontSize: 12)),
                 onTap: () {
                   Navigator.pop(ctx);
                   showChapterPlanSheet(context, s,
-                      existing: existing,
                       preselectedDay: day.weekday);
                 },
               );
