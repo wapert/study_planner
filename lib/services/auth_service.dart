@@ -26,7 +26,12 @@ class AuthService {
     await _auth.sendPasswordResetEmail(email: email.trim());
   }
 
+  /// Set when the user signs out on purpose, so the login screen doesn't
+  /// immediately prompt them to sign back in. Consumed by LoginScreen.
+  bool justSignedOut = false;
+
   Future<void> signOut() async {
+    justSignedOut = true;
     await _auth.signOut();
   }
 

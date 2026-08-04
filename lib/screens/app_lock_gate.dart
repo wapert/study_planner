@@ -42,14 +42,23 @@ class _AppLockGateState extends State<AppLockGate>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Lock synchronously, before the first frame is painted. Deferring this
-    // to a post-frame callback would render the real app content for a frame
-    // (and for however long the async probe took) before the lock appeared.
-    _locked = context.read<AppProvider>().appLockEnabled;
+    final lockEnabled = context.read<AppProvider>().appLockEnabled;
 
-    if (_locked) {
-      // Prompt as soon as the lock screen is on screen.
-      WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
+    if (lockEnabled && BiometricService.recentlyAuthenticated()) {
+      // Arrived straight from a biometric sign-in on the login screen —
+      // prompting again immediately would be a second, redundant check.
+      _locked = false;
+      _authenticated = true;
+    } else {
+      // Lock synchronously, before the first frame is painted. Deferring this
+      // to a post-frame callback would render the real app content for a
+      // frame (and for however long the async probe took) before the lock
+      // appeared.
+      _locked = lockEnabled;
+      if (_locked) {
+        // Prompt as soon as the lock screen is on screen.
+        WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
+      }
     }
     _loadLabel();
   }

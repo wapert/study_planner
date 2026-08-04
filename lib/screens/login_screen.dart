@@ -36,6 +36,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _initBiometric() async {
     final store = context.read<CredentialStore>();
+    final auth = context.read<AuthService>();
+
+    // If the user just chose 登出, don't immediately ask them to sign back
+    // in. The button stays available for when they actually want it.
+    final deliberateSignOut = auth.justSignedOut;
+    auth.justSignedOut = false;
+
     final hasCreds = await store.hasCredentials();
     if (!hasCreds) return;
     final available = await _bio.isAvailable();
@@ -48,8 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _savedEmail = email;
       if (email != null) _emailCtrl.text = email;
     });
-    // Offer the prompt immediately — this is the whole point of the feature.
-    if (available && !_autoPrompted) {
+    // Auto-prompt only on a fresh launch, never right after a sign-out.
+    if (available && !deliberateSignOut && !_autoPrompted) {
       _autoPrompted = true;
       _biometricSignIn();
     }

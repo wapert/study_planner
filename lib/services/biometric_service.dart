@@ -28,6 +28,20 @@ enum BiometricAvailability {
 class BiometricService {
   final LocalAuthentication _auth = LocalAuthentication();
 
+  /// When the last successful check happened, shared across every instance.
+  /// Lets one screen's prompt satisfy another's — e.g. signing in with
+  /// biometrics shouldn't immediately be followed by the app-lock prompt.
+  static DateTime? _lastSuccess;
+
+  /// True if a biometric check passed within [within]. Used to suppress a
+  /// second, redundant prompt moments after the first.
+  static bool recentlyAuthenticated({
+    Duration within = const Duration(seconds: 20),
+  }) {
+    final t = _lastSuccess;
+    return t != null && DateTime.now().difference(t) < within;
+  }
+
   /// Biometrics only exist on iOS/Android — never on web or desktop.
   bool get _supportedPlatform =>
       !kIsWeb &&
@@ -91,7 +105,7 @@ class BiometricService {
   Future<bool> authenticate({String reason = '請驗證身分以開啟讀書計畫'}) async {
     if (!_supportedPlatform) return true;
     try {
-      return await _auth.authenticate(
+      final ok = await _auth.authenticate(
         localizedReason: reason,
         // Allow the device passcode as a fallback so a failed or unreadable
         // fingerprint doesn't lock the owner out of their own data.
@@ -99,6 +113,8 @@ class BiometricService {
         // Survive the OS briefly backgrounding the app to show the prompt.
         persistAcrossBackgrounding: true,
       );
+      if (ok) _lastSuccess = DateTime.now();
+      return ok;
     } catch (e) {
       debugPrint('Biometric auth failed: $e');
       return false;
