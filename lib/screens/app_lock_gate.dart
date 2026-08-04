@@ -22,7 +22,17 @@ class AppLockGate extends StatefulWidget {
 class _AppLockGateState extends State<AppLockGate>
     with WidgetsBindingObserver {
   final _bio = BiometricService();
+
+  /// Showing the lock UI. Also raised while backgrounded so the OS
+  /// app-switcher snapshot never exposes the user's data.
   bool _locked = false;
+
+  /// Whether the user has passed a biometric check in this session. Kept
+  /// separate from [_locked] so returning quickly from the app switcher can
+  /// restore an *already authenticated* session without re-prompting, while a
+  /// never-authenticated lock still requires the prompt.
+  bool _authenticated = false;
+
   bool _prompting = false;
   DateTime? _pausedAt;
   String _label = '生物辨識';
@@ -31,15 +41,23 @@ class _AppLockGateState extends State<AppLockGate>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Read the pref after the first frame so context is safe to use.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      _label = await _bio.methodLabel();
-      if (!mounted) return;
-      if (context.read<AppProvider>().appLockEnabled) {
-        setState(() => _locked = true);
-        _unlock();
-      }
-    });
+
+    // Lock synchronously, before the first frame is painted. Deferring this
+    // to a post-frame callback would render the real app content for a frame
+    // (and for however long the async probe took) before the lock appeared.
+    _locked = context.read<AppProvider>().appLockEnabled;
+
+    if (_locked) {
+      // Prompt as soon as the lock screen is on screen.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
+    }
+    _loadLabel();
+  }
+
+  Future<void> _loadLabel() async {
+    final label = await _bio.methodLabel();
+    if (!mounted) return;
+    setState(() => _label = label);
   }
 
   @override
@@ -51,19 +69,26 @@ class _AppLockGateState extends State<AppLockGate>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!mounted) return;
-    final enabled = context.read<AppProvider>().appLockEnabled;
-    if (!enabled) return;
+    if (!context.read<AppProvider>().appLockEnabled) return;
 
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _pausedAt ??= DateTime.now();
+      // Cover the content before the OS takes its app-switcher snapshot.
+      if (!_locked) setState(() => _locked = true);
     } else if (state == AppLifecycleState.resumed) {
       final away = _pausedAt == null
           ? Duration.zero
           : DateTime.now().difference(_pausedAt!);
       _pausedAt = null;
-      if (!_locked && away > _relockAfter) {
-        setState(() => _locked = true);
+      if (!_locked) return;
+
+      if (_authenticated && away <= _relockAfter) {
+        // Briefly checked a notification — restore without re-prompting.
+        setState(() => _locked = false);
+      } else {
+        // Never authenticated, or away long enough to re-lock.
+        _authenticated = false;
         _unlock();
       }
     }
@@ -75,7 +100,12 @@ class _AppLockGateState extends State<AppLockGate>
     final ok = await _bio.authenticate();
     _prompting = false;
     if (!mounted) return;
-    if (ok) setState(() => _locked = false);
+    if (ok) {
+      setState(() {
+        _authenticated = true;
+        _locked = false;
+      });
+    }
   }
 
   @override
