@@ -435,4 +435,16 @@ class AppProvider extends ChangeNotifier {
     await _prefsBox.put(_prefKey('progress_title'), title);
     notifyListeners();
   }
+
+  // ── App lock (biometrics) ────────────────────────────────────────────────
+  // Device-local and per-account: enabling it on one phone does not lock the
+  // same account on another device.
+
+  bool get appLockEnabled =>
+      _prefsBox.get(_prefKey('app_lock')) as bool? ?? false;
+
+  Future<void> setAppLockEnabled(bool value) async {
+    await _prefsBox.put(_prefKey('app_lock'), value);
+    notifyListeners();
+  }
 }

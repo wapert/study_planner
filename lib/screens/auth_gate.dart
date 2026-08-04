@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import 'home_screen.dart';
 import 'profile_setup_screen.dart';
 import 'login_screen.dart';
+import 'app_lock_gate.dart';
 
 /// Decides what to show based on Firebase auth state:
 /// - Firebase unavailable  → local-only app (offline fallback)
@@ -38,7 +39,8 @@ class AuthGate extends StatelessWidget {
   }
 }
 
-/// The signed-in (or offline) app: first-launch profile setup, then home.
+/// The signed-in (or offline) app: first-launch profile setup, then home,
+/// behind the biometric app lock when the user has enabled it.
 class _AppRoot extends StatelessWidget {
   const _AppRoot();
 
@@ -46,6 +48,8 @@ class _AppRoot extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
     final showSetup = !provider.hasProfile && !provider.profileSetupDismissed;
-    return showSetup ? const ProfileSetupScreen() : const HomeScreen();
+    return AppLockGate(
+      child: showSetup ? const ProfileSetupScreen() : const HomeScreen(),
+    );
   }
 }

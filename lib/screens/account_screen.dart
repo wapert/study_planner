@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/sync_service.dart';
 import '../services/share_service.dart';
+import '../services/biometric_service.dart';
+import '../providers/app_provider.dart';
 import '../widgets/account_button.dart';
 import 'shared_plan_screen.dart';
 
@@ -71,6 +73,10 @@ class AccountScreen extends StatelessWidget {
 
           // ── Sync status ─────────────────────────────────────────────────
           _SyncStatusTile(sync: sync),
+          const SizedBox(height: 16),
+
+          // ── App lock ────────────────────────────────────────────────────
+          const _AppLockTile(),
           const SizedBox(height: 24),
 
           // ── Share my plan ───────────────────────────────────────────────
@@ -346,6 +352,92 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(text,
       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
+}
+
+/// 應用程式鎖 toggle — only shown on devices that actually support biometrics.
+class _AppLockTile extends StatefulWidget {
+  const _AppLockTile();
+
+  @override
+  State<_AppLockTile> createState() => _AppLockTileState();
+}
+
+class _AppLockTileState extends State<_AppLockTile> {
+  final _bio = BiometricService();
+  bool? _available;
+  String _label = '生物辨識';
+
+  @override
+  void initState() {
+    super.initState();
+    _probe();
+  }
+
+  Future<void> _probe() async {
+    final ok = await _bio.isAvailable();
+    final label = await _bio.methodLabel();
+    if (!mounted) return;
+    setState(() {
+      _available = ok;
+      _label = label;
+    });
+  }
+
+  Future<void> _toggle(bool want) async {
+    final provider = context.read<AppProvider>();
+    if (want) {
+      // Verify once before switching on, so the user can't lock themselves
+      // out with a biometric that doesn't actually work.
+      final ok = await _bio.authenticate(reason: '驗證身分以開啟應用程式鎖');
+      if (!ok) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('驗證失敗，未開啟應用程式鎖')),
+          );
+        }
+        return;
+      }
+    }
+    await provider.setAppLockEnabled(want);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Hidden entirely where biometrics don't exist (web, or no enrolment).
+    if (_available != true) return const SizedBox.shrink();
+
+    final enabled = context.watch<AppProvider>().appLockEnabled;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 4, 8, 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.fingerprint, color: _blue, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('應用程式鎖',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                Text('用 $_label 解鎖，保護你的學習紀錄',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color:
+                            Theme.of(context).colorScheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+          Switch(value: enabled, onChanged: _toggle),
+        ],
+      ),
+    );
+  }
 }
 
 class _SyncStatusTile extends StatelessWidget {
