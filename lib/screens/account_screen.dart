@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/sync_service.dart';
 import '../services/share_service.dart';
 import '../services/biometric_service.dart';
+import '../services/credential_store.dart';
 import '../providers/app_provider.dart';
 import '../widgets/account_button.dart';
 import 'shared_plan_screen.dart';
@@ -77,6 +78,8 @@ class AccountScreen extends StatelessWidget {
 
           // ── App lock ────────────────────────────────────────────────────
           const _AppLockTile(),
+          const SizedBox(height: 10),
+          const _BiometricSignInTile(),
           const SizedBox(height: 24),
 
           // ── Share my plan ───────────────────────────────────────────────
@@ -271,9 +274,12 @@ class AccountScreen extends StatelessWidget {
                       });
                       final auth = ctx.read<AuthService>();
                       final sync = ctx.read<SyncService>();
+                      final creds = ctx.read<CredentialStore>();
                       try {
                         await auth.reauthenticate(pwCtrl.text);
                         await sync.deleteAllCloudData();
+                        // Never leave a password behind for a dead account.
+                        await creds.clear();
                         await auth.deleteAccount();
                         // AuthGate reacts to sign-out and returns to login.
                         if (ctx.mounted) Navigator.pop(ctx);
@@ -534,4 +540,149 @@ class _SyncStatusTile extends StatelessWidget {
 
   String _time(DateTime t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+}
+
+/// 生物辨識快速登入 — stores the password in the platform secure store so the
+/// user can sign back in with biometrics after an explicit 登出.
+class _BiometricSignInTile extends StatefulWidget {
+  const _BiometricSignInTile();
+
+  @override
+  State<_BiometricSignInTile> createState() => _BiometricSignInTileState();
+}
+
+class _BiometricSignInTileState extends State<_BiometricSignInTile> {
+  final _bio = BiometricService();
+  bool? _available;
+  bool _enabled = false;
+  String _label = '生物辨識';
+
+  @override
+  void initState() {
+    super.initState();
+    _probe();
+  }
+
+  Future<void> _probe() async {
+    // Read the provider before any await so BuildContext isn't used across
+    // an async gap.
+    final store = context.read<CredentialStore>();
+    final available = await _bio.isAvailable();
+    final label = await _bio.methodLabel();
+    final enabled = await store.hasCredentials();
+    if (!mounted) return;
+    setState(() {
+      _available = available;
+      _label = label;
+      _enabled = enabled;
+    });
+  }
+
+  Future<void> _toggle(bool want) async {
+    final store = context.read<CredentialStore>();
+    final auth = context.read<AuthService>();
+
+    if (!want) {
+      await store.clear();
+      if (mounted) setState(() => _enabled = false);
+      return;
+    }
+
+    // Enabling needs the password: Firebase never exposes it, so the user has
+    // to re-enter it once. This also proves they own the account.
+    final pw = await _askPassword();
+    if (pw == null || !mounted) return;
+
+    try {
+      await auth.reauthenticate(pw);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AuthService.messageFor(e))),
+        );
+      }
+      return;
+    }
+
+    final ok = await _bio.authenticate(reason: '驗證身分以開啟快速登入');
+    if (!ok || !mounted) return;
+
+    await store.save(auth.email ?? '', pw);
+    if (mounted) setState(() => _enabled = true);
+  }
+
+  Future<String?> _askPassword() {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('開啟快速登入'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '為了下次能用生物辨識登入，需要將密碼加密儲存在這台裝置上。\n'
+              '密碼會存放在系統的安全儲存區，並且只有通過生物辨識才能讀取。',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              obscureText: true,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: '密碼',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _blue),
+            onPressed: () => Navigator.pop(ctx, ctrl.text),
+            child: const Text('確定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_available != true) return const SizedBox.shrink();
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 4, 8, 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.login, color: _blue, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('生物辨識快速登入',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                Text('登出後可直接用 $_label 登入，免輸入密碼',
+                    style: TextStyle(fontSize: 12, color: muted)),
+              ],
+            ),
+          ),
+          Switch(value: _enabled, onChanged: _toggle),
+        ],
+      ),
+    );
+  }
 }

@@ -14,6 +14,7 @@ import 'providers/app_provider.dart';
 import 'services/auth_service.dart';
 import 'services/sync_service.dart';
 import 'services/share_service.dart';
+import 'services/credential_store.dart';
 import 'screens/auth_gate.dart';
 
 void main() async {
@@ -46,6 +47,7 @@ void main() async {
   final auth = AuthService();
   final sync = SyncService(provider: provider, auth: auth);
   final share = ShareService(auth);
+  final creds = CredentialStore();
 
   runApp(
     MultiProvider(
@@ -53,6 +55,7 @@ void main() async {
         ChangeNotifierProvider.value(value: provider),
         Provider.value(value: auth),
         Provider.value(value: share),
+        Provider.value(value: creds),
         ChangeNotifierProvider.value(value: sync),
       ],
       child: StudyPlannerApp(firebaseReady: firebaseReady),

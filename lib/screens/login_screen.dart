@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/biometric_service.dart';
+import '../services/credential_store.dart';
 
 const _blue = Color(0xFF1E88E5);
 
@@ -19,6 +21,74 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _busy = false;
   bool _obscure = true;
   String? _error;
+
+  final _bio = BiometricService();
+  bool _bioAvailable = false;
+  String? _savedEmail;
+  String _bioLabel = '生物辨識';
+  bool _autoPrompted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initBiometric();
+  }
+
+  Future<void> _initBiometric() async {
+    final store = context.read<CredentialStore>();
+    final hasCreds = await store.hasCredentials();
+    if (!hasCreds) return;
+    final available = await _bio.isAvailable();
+    final label = await _bio.methodLabel();
+    final email = await store.savedEmail();
+    if (!mounted) return;
+    setState(() {
+      _bioAvailable = available;
+      _bioLabel = label;
+      _savedEmail = email;
+      if (email != null) _emailCtrl.text = email;
+    });
+    // Offer the prompt immediately — this is the whole point of the feature.
+    if (available && !_autoPrompted) {
+      _autoPrompted = true;
+      _biometricSignIn();
+    }
+  }
+
+  Future<void> _biometricSignIn() async {
+    if (_busy) return;
+    final store = context.read<CredentialStore>();
+    // Capture before the await so BuildContext isn't used across the gap.
+    final auth = context.read<AuthService>();
+    final ok = await _bio.authenticate(reason: '驗證身分以登入讀書計畫');
+    if (!ok || !mounted) return;
+
+    final creds = await store.read();
+    if (creds == null) {
+      if (mounted) setState(() => _error = '找不到已儲存的登入資訊，請手動登入');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await auth.signIn(creds.$1, creds.$2);
+      // AuthGate reacts to the auth state change.
+    } catch (e) {
+      // Most likely the password was changed on another device — the stored
+      // copy is now useless, so drop it rather than prompting forever.
+      await store.clear();
+      if (!mounted) return;
+      setState(() {
+        _bioAvailable = false;
+        _error = '儲存的密碼已失效，請重新輸入密碼登入';
+      });
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -211,6 +281,50 @@ class _LoginScreenState extends State<LoginScreen> {
                                   fontWeight: FontWeight.w600)),
                     ),
                   ),
+                  // Biometric sign-in (only when credentials were saved)
+                  if (_bioAvailable && !_isSignUp) ...[
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('或',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade500)),
+                        ),
+                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _blue,
+                          side: const BorderSide(color: _blue, width: 1.4),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        icon: const Icon(Icons.fingerprint, size: 22),
+                        label: Text('使用 $_bioLabel 登入',
+                            style: const TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w600)),
+                        onPressed: _busy ? null : _biometricSignIn,
+                      ),
+                    ),
+                    if (_savedEmail != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(_savedEmail!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade500)),
+                      ),
+                  ],
+
                   const SizedBox(height: 18),
 
                   // Toggle sign in / sign up
