@@ -362,23 +362,38 @@ class _AppLockTile extends StatefulWidget {
   State<_AppLockTile> createState() => _AppLockTileState();
 }
 
-class _AppLockTileState extends State<_AppLockTile> {
+class _AppLockTileState extends State<_AppLockTile>
+    with WidgetsBindingObserver {
   final _bio = BiometricService();
-  bool? _available;
+  BiometricAvailability? _status;
   String _label = '生物辨識';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _probe();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-check after the user returns from system settings, so enrolling a
+    // fingerprint takes effect without restarting the app.
+    if (state == AppLifecycleState.resumed) _probe();
+  }
+
   Future<void> _probe() async {
-    final ok = await _bio.isAvailable();
+    final status = await _bio.availability();
     final label = await _bio.methodLabel();
     if (!mounted) return;
     setState(() {
-      _available = ok;
+      _status = status;
       _label = label;
     });
   }
@@ -403,10 +418,26 @@ class _AppLockTileState extends State<_AppLockTile> {
 
   @override
   Widget build(BuildContext context) {
-    // Hidden entirely where biometrics don't exist (web, or no enrolment).
-    if (_available != true) return const SizedBox.shrink();
+    final status = _status;
+    // Still probing — reserve nothing rather than flash a wrong state.
+    if (status == null) return const SizedBox.shrink();
+    // Web/desktop have no biometrics at all; the option is meaningless there.
+    if (status == BiometricAvailability.unsupportedPlatform) {
+      return const SizedBox.shrink();
+    }
 
+    final usable = status != BiometricAvailability.noScreenLock;
     final enabled = context.watch<AppProvider>().appLockEnabled;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    final subtitle = switch (status) {
+      BiometricAvailability.noScreenLock =>
+        '請先到系統設定加入螢幕鎖定或指紋，才能使用',
+      BiometricAvailability.passcodeOnly =>
+        '尚未註冊指紋／臉部，將使用$_label解鎖',
+      _ => '用 $_label 解鎖，保護你的學習紀錄',
+    };
+
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 4, 8, 4),
       decoration: BoxDecoration(
@@ -416,24 +447,27 @@ class _AppLockTileState extends State<_AppLockTile> {
       ),
       child: Row(
         children: [
-          Icon(Icons.fingerprint, color: _blue, size: 22),
+          Icon(Icons.fingerprint,
+              color: usable ? _blue : muted, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('應用程式鎖',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                Text('用 $_label 解鎖，保護你的學習紀錄',
+                Text('應用程式鎖',
                     style: TextStyle(
-                        fontSize: 12,
-                        color:
-                            Theme.of(context).colorScheme.onSurfaceVariant)),
+                        fontWeight: FontWeight.w600,
+                        color: usable ? null : muted)),
+                Text(subtitle,
+                    style: TextStyle(fontSize: 12, color: muted)),
               ],
             ),
           ),
-          Switch(value: enabled, onChanged: _toggle),
+          Switch(
+            value: enabled && usable,
+            onChanged: usable ? _toggle : null,
+          ),
         ],
       ),
     );

@@ -1,6 +1,24 @@
 import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 
+/// Why the app lock can or cannot be offered on this device.
+enum BiometricAvailability {
+  /// Web/desktop — biometrics don't exist here; hide the option entirely.
+  unsupportedPlatform,
+
+  /// No PIN / pattern / password / biometric set on the device, so there is
+  /// nothing to authenticate against. The user must fix this in system
+  /// settings before the app lock can be enabled.
+  noScreenLock,
+
+  /// A screen lock exists but no fingerprint/face is enrolled — the lock
+  /// still works via the device passcode.
+  passcodeOnly,
+
+  /// Biometrics are enrolled and ready.
+  ready,
+}
+
 /// Wraps device biometrics (Face ID / Touch ID / fingerprint).
 ///
 /// This is used as an **app lock**, not as a replacement for the account
@@ -16,19 +34,33 @@ class BiometricService {
       (defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.android);
 
-  /// True when the device has hardware AND the user has enrolled a
-  /// fingerprint / face (or a device passcode we can fall back to).
-  Future<bool> isAvailable() async {
-    if (!_supportedPlatform) return false;
+  /// Detailed availability so the UI can explain itself instead of silently
+  /// hiding the option.
+  Future<BiometricAvailability> availability() async {
+    if (!_supportedPlatform) return BiometricAvailability.unsupportedPlatform;
     try {
-      final supported = await _auth.isDeviceSupported();
-      if (!supported) return false;
-      return await _auth.canCheckBiometrics ||
-          await _auth.isDeviceSupported();
+      // isDeviceSupported() is true when *any* secure lock exists
+      // (PIN/pattern/password or biometric).
+      final deviceOk = await _auth.isDeviceSupported();
+      if (!deviceOk) return BiometricAvailability.noScreenLock;
+
+      final enrolled = await _auth.getAvailableBiometrics();
+      return enrolled.isEmpty
+          ? BiometricAvailability.passcodeOnly
+          : BiometricAvailability.ready;
     } catch (e) {
       debugPrint('Biometric availability check failed: $e');
-      return false;
+      // A failure here shouldn't hide the feature outright; treat it as
+      // passcode-only so the user can still try.
+      return BiometricAvailability.passcodeOnly;
     }
+  }
+
+  /// True when the app lock can be turned on at all.
+  Future<bool> isAvailable() async {
+    final a = await availability();
+    return a == BiometricAvailability.ready ||
+        a == BiometricAvailability.passcodeOnly;
   }
 
   /// Human label for what the device offers, for use in UI copy.
@@ -47,8 +79,11 @@ class BiometricService {
             : '指紋辨識';
       }
       if (types.contains(BiometricType.iris)) return '虹膜辨識';
-    } catch (_) {}
-    return '生物辨識';
+      // Nothing enrolled — the lock falls back to the device passcode.
+      return '螢幕鎖定密碼';
+    } catch (_) {
+      return '生物辨識';
+    }
   }
 
   /// Prompts the user. Returns true only on a successful match.
