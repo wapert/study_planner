@@ -73,8 +73,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final timedSubjects =
         provider.subjects.where((s) => s.weeklyGoalMinutes > 0).toList();
 
-    // Chapter plans whose period overlaps the selected range.
+    // Chapter plans that will actually render a row: the subject still
+    // exists, the period overlaps the range, AND at least one study day falls
+    // inside it. Without the last two checks the 章節完成度 header could show
+    // with nothing beneath it.
     final plans = provider.chapterPlans.where((p) {
+      if (provider.subjectById(p.subjectId) == null) return false;
+      if (!p.allStudyDates.any((d) => _inRange(provider, d))) return false;
+      return true;
+    }).where((p) {
       final ps = p.startDate.dateOnly;
       final pe = p.endDate.dateOnly;
       return !pe.isBefore(rStart) && !ps.isAfter(rEnd);
